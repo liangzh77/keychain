@@ -109,7 +109,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
 </head>
 <body>
   <header>
-    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span></div>
+    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a></div>
     <form method="post" action="/logout"><button class="ghost" type="submit">退出</button></form>
   </header>
   <div class="app">
@@ -303,6 +303,7 @@ func registerPageRoutes(mux *http.ServeMux, authService *auth.Service, store *ad
 	mux.HandleFunc("POST /logout", formLogoutHandler(authService))
 	mux.HandleFunc("GET /admin", adminPageHandler(authService, store))
 	if store != nil {
+		registerAccessRoutes(mux, authService, store)
 		mux.HandleFunc("POST /admin/providers", formCreateProviderHandler(store))
 		mux.HandleFunc("POST /admin/providers/update", formUpdateProviderHandler(store))
 		mux.HandleFunc("POST /admin/providers/delete", formDeleteProviderHandler(store))

@@ -1,0 +1,376 @@
+package admin
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+)
+
+type Channel struct {
+	ID                    string `json:"id"`
+	Name                  string `json:"name"`
+	Code                  string `json:"code"`
+	DefaultPermissionMode string `json:"defaultPermissionMode"`
+	IsEnabled             bool   `json:"isEnabled"`
+}
+
+type User struct {
+	ID             string `json:"id"`
+	ChannelID      string `json:"channelId"`
+	ExternalUserID string `json:"externalUserId"`
+	DisplayName    string `json:"displayName"`
+	IsEnabled      bool   `json:"isEnabled"`
+}
+
+type ProviderModelOption struct {
+	ProviderID   string
+	ProviderName string
+	ProviderCode string
+	ModelID      string
+	ModelName    string
+	ModelCode    string
+}
+
+type ChannelPermissionRow struct {
+	ProviderModelOption
+	DefaultAllowed bool
+	HasDefault     bool
+}
+
+type UserPermissionRow struct {
+	ProviderModelOption
+	Allowed     bool
+	HasExplicit bool
+}
+
+type CreateChannelInput struct {
+	Name                  string
+	Code                  string
+	DefaultPermissionMode string
+	IsEnabled             bool
+}
+
+type UpdateChannelInput = CreateChannelInput
+
+type CreateUserInput struct {
+	ChannelID      string
+	ExternalUserID string
+	DisplayName    string
+	IsEnabled      bool
+}
+
+type UpdateUserInput struct {
+	ExternalUserID string
+	DisplayName    string
+	IsEnabled      bool
+}
+
+func (store *Store) ListChannels(ctx context.Context) ([]Channel, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT id, name, code, default_permission_mode, is_enabled
+FROM channels
+ORDER BY created_at DESC, name ASC;
+`)
+	if err != nil {
+		return nil, fmt.Errorf("list channels: %w", err)
+	}
+	defer rows.Close()
+
+	var channels []Channel
+	for rows.Next() {
+		var channel Channel
+		var isEnabled int
+		if err := rows.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &isEnabled); err != nil {
+			return nil, fmt.Errorf("scan channel: %w", err)
+		}
+		channel.IsEnabled = isEnabled == 1
+		channels = append(channels, channel)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate channels: %w", err)
+	}
+	return channels, nil
+}
+
+func (store *Store) CreateChannel(ctx context.Context, input CreateChannelInput) (Channel, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if input.DefaultPermissionMode == "" {
+		input.DefaultPermissionMode = "DENY"
+	}
+	if input.Name == "" || input.Code == "" {
+		return Channel{}, fmt.Errorf("channel name and code are required")
+	}
+	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
+		return Channel{}, fmt.Errorf("invalid channel default permission mode")
+	}
+	now := formatTime(store.now())
+	channel := Channel{
+		ID:                    newID("channel"),
+		Name:                  input.Name,
+		Code:                  input.Code,
+		DefaultPermissionMode: input.DefaultPermissionMode,
+		IsEnabled:             input.IsEnabled,
+	}
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO channels (id, name, code, default_permission_mode, is_enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+`, channel.ID, channel.Name, channel.Code, channel.DefaultPermissionMode, boolToInt(channel.IsEnabled), now, now); err != nil {
+		return Channel{}, fmt.Errorf("create channel: %w", err)
+	}
+	return channel, nil
+}
+
+func (store *Store) UpdateChannel(ctx context.Context, id string, input UpdateChannelInput) error {
+	id = strings.TrimSpace(id)
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if id == "" || input.Name == "" || input.Code == "" {
+		return fmt.Errorf("channel id, name and code are required")
+	}
+	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
+		return fmt.Errorf("invalid channel default permission mode")
+	}
+	if _, err := store.db.ExecContext(ctx, `
+UPDATE channels
+SET name = ?, code = ?, default_permission_mode = ?, is_enabled = ?, updated_at = ?
+WHERE id = ?;
+`, input.Name, input.Code, input.DefaultPermissionMode, boolToInt(input.IsEnabled), formatTime(store.now()), id); err != nil {
+		return fmt.Errorf("update channel: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) DeleteChannel(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("channel id is required")
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM channels WHERE id = ?;`, id); err != nil {
+		return fmt.Errorf("delete channel: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListUsers(ctx context.Context, channelID string) ([]User, error) {
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		return nil, fmt.Errorf("channel id is required")
+	}
+	rows, err := store.db.QueryContext(ctx, `
+SELECT id, channel_id, external_user_id, display_name, is_enabled
+FROM users
+WHERE channel_id = ?
+ORDER BY created_at DESC, display_name ASC;
+`, channelID)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		var isEnabled int
+		if err := rows.Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		user.IsEnabled = isEnabled == 1
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users: %w", err)
+	}
+	return users, nil
+}
+
+func (store *Store) CreateUser(ctx context.Context, input CreateUserInput) (User, error) {
+	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
+	if input.ChannelID == "" || input.ExternalUserID == "" || input.DisplayName == "" {
+		return User{}, fmt.Errorf("channel id, external user id and display name are required")
+	}
+	now := formatTime(store.now())
+	user := User{
+		ID:             newID("user"),
+		ChannelID:      input.ChannelID,
+		ExternalUserID: input.ExternalUserID,
+		DisplayName:    input.DisplayName,
+		IsEnabled:      input.IsEnabled,
+	}
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO users (id, channel_id, external_user_id, display_name, is_enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+`, user.ID, user.ChannelID, user.ExternalUserID, user.DisplayName, boolToInt(user.IsEnabled), now, now); err != nil {
+		return User{}, fmt.Errorf("create user: %w", err)
+	}
+	return user, nil
+}
+
+func (store *Store) UpdateUser(ctx context.Context, id string, input UpdateUserInput) error {
+	id = strings.TrimSpace(id)
+	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
+	if id == "" || input.ExternalUserID == "" || input.DisplayName == "" {
+		return fmt.Errorf("user id, external user id and display name are required")
+	}
+	if _, err := store.db.ExecContext(ctx, `
+UPDATE users
+SET external_user_id = ?, display_name = ?, is_enabled = ?, updated_at = ?
+WHERE id = ?;
+`, input.ExternalUserID, input.DisplayName, boolToInt(input.IsEnabled), formatTime(store.now()), id); err != nil {
+		return fmt.Errorf("update user: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) DeleteUser(ctx context.Context, id string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("user id is required")
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?;`, id); err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListChannelPermissionRows(ctx context.Context, channelID string) ([]ChannelPermissionRow, error) {
+	options, err := store.ListProviderModelOptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]ChannelPermissionRow, 0, len(options))
+	for _, option := range options {
+		var allowed int
+		err := store.db.QueryRowContext(ctx, `
+SELECT default_allowed
+FROM channel_permission_defaults
+WHERE channel_id = ? AND provider_id = ? AND model_id = ?;
+`, channelID, option.ProviderID, option.ModelID).Scan(&allowed)
+		item := ChannelPermissionRow{ProviderModelOption: option}
+		if err == nil {
+			item.DefaultAllowed = allowed == 1
+			item.HasDefault = true
+		} else if err != sql.ErrNoRows {
+			return nil, fmt.Errorf("read channel permission default: %w", err)
+		}
+		rows = append(rows, item)
+	}
+	return rows, nil
+}
+
+func (store *Store) SetChannelPermissionDefault(ctx context.Context, channelID string, providerID string, modelID string, allowed bool) error {
+	if channelID == "" || providerID == "" || modelID == "" {
+		return fmt.Errorf("channel id, provider id and model id are required")
+	}
+	now := formatTime(store.now())
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO channel_permission_defaults (id, channel_id, provider_id, model_id, default_allowed, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(channel_id, provider_id, model_id)
+DO UPDATE SET default_allowed = excluded.default_allowed, updated_at = excluded.updated_at;
+`, newID("channel_permission"), channelID, providerID, modelID, boolToInt(allowed), now, now); err != nil {
+		return fmt.Errorf("set channel permission default: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListUserPermissionRows(ctx context.Context, userID string) ([]UserPermissionRow, error) {
+	options, err := store.ListProviderModelOptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]UserPermissionRow, 0, len(options))
+	for _, option := range options {
+		var allowed int
+		err := store.db.QueryRowContext(ctx, `
+SELECT allowed
+FROM user_permissions
+WHERE user_id = ? AND provider_id = ? AND model_id = ?;
+`, userID, option.ProviderID, option.ModelID).Scan(&allowed)
+		item := UserPermissionRow{ProviderModelOption: option}
+		if err == nil {
+			item.Allowed = allowed == 1
+			item.HasExplicit = true
+		} else if err != sql.ErrNoRows {
+			return nil, fmt.Errorf("read user permission: %w", err)
+		}
+		rows = append(rows, item)
+	}
+	return rows, nil
+}
+
+func (store *Store) SetUserPermission(ctx context.Context, userID string, providerID string, modelID string, allowed bool) error {
+	if userID == "" || providerID == "" || modelID == "" {
+		return fmt.Errorf("user id, provider id and model id are required")
+	}
+	now := formatTime(store.now())
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO user_permissions (id, user_id, provider_id, model_id, allowed, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(user_id, provider_id, model_id)
+DO UPDATE SET allowed = excluded.allowed, updated_at = excluded.updated_at;
+`, newID("user_permission"), userID, providerID, modelID, boolToInt(allowed), now, now); err != nil {
+		return fmt.Errorf("set user permission: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListProviderModelOptions(ctx context.Context) ([]ProviderModelOption, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT providers.id, providers.name, providers.code, models.id, models.name, models.code
+FROM providers
+JOIN models ON models.provider_id = providers.id
+ORDER BY providers.name ASC, models.name ASC;
+`)
+	if err != nil {
+		return nil, fmt.Errorf("list provider model options: %w", err)
+	}
+	defer rows.Close()
+
+	var options []ProviderModelOption
+	for rows.Next() {
+		var option ProviderModelOption
+		if err := rows.Scan(&option.ProviderID, &option.ProviderName, &option.ProviderCode, &option.ModelID, &option.ModelName, &option.ModelCode); err != nil {
+			return nil, fmt.Errorf("scan provider model option: %w", err)
+		}
+		options = append(options, option)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate provider model options: %w", err)
+	}
+	return options, nil
+}
+
+func (store *Store) SeedDemoAccessData(ctx context.Context) error {
+	demoChannels := []CreateChannelInput{
+		{Name: "本校默认渠道", Code: "school-default", DefaultPermissionMode: "DENY", IsEnabled: true},
+		{Name: "科研试用渠道", Code: "research-trial", DefaultPermissionMode: "ALLOW", IsEnabled: true},
+	}
+	for _, channel := range demoChannels {
+		if _, err := store.CreateChannel(ctx, channel); err != nil && !strings.Contains(err.Error(), "UNIQUE") {
+			return err
+		}
+	}
+
+	channels, err := store.ListChannels(ctx)
+	if err != nil {
+		return err
+	}
+	channelByCode := map[string]Channel{}
+	for _, channel := range channels {
+		channelByCode[channel.Code] = channel
+	}
+	demoUsers := []CreateUserInput{
+		{ChannelID: channelByCode["school-default"].ID, ExternalUserID: "stu-2026-001", DisplayName: "教学演示用户 001", IsEnabled: true},
+		{ChannelID: channelByCode["school-default"].ID, ExternalUserID: "stu-2026-002", DisplayName: "教学演示用户 002", IsEnabled: true},
+		{ChannelID: channelByCode["research-trial"].ID, ExternalUserID: "lab-user-001", DisplayName: "科研试用用户 001", IsEnabled: true},
+	}
+	for _, user := range demoUsers {
+		if _, err := store.CreateUser(ctx, user); err != nil && !strings.Contains(err.Error(), "UNIQUE") {
+			return err
+		}
+	}
+	return nil
+}

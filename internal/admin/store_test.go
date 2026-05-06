@@ -165,6 +165,70 @@ func TestUpdateProviderModelAndKey(t *testing.T) {
 	}
 }
 
+func TestAccessDataAndPermissions(t *testing.T) {
+	store := newTestStore(t)
+
+	provider, err := store.CreateProvider(context.Background(), CreateProviderInput{
+		Name:             "OpenAI",
+		Code:             "openai",
+		IsEnabled:        true,
+		RotationStrategy: "ROUND_ROBIN",
+	})
+	if err != nil {
+		t.Fatalf("CreateProvider() error = %v", err)
+	}
+	model, err := store.CreateModel(context.Background(), CreateModelInput{
+		ProviderID: provider.ID,
+		Name:       "GPT 4.1",
+		Code:       "gpt-4.1",
+		IsEnabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateModel() error = %v", err)
+	}
+
+	if err := store.SeedDemoAccessData(context.Background()); err != nil {
+		t.Fatalf("SeedDemoAccessData() error = %v", err)
+	}
+	channels, err := store.ListChannels(context.Background())
+	if err != nil {
+		t.Fatalf("ListChannels() error = %v", err)
+	}
+	if len(channels) != 2 {
+		t.Fatalf("channels length = %d, want 2", len(channels))
+	}
+
+	users, err := store.ListUsers(context.Background(), channels[0].ID)
+	if err != nil {
+		t.Fatalf("ListUsers() error = %v", err)
+	}
+	if len(users) == 0 {
+		t.Fatal("expected demo users")
+	}
+
+	if err := store.SetChannelPermissionDefault(context.Background(), channels[0].ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+	channelRows, err := store.ListChannelPermissionRows(context.Background(), channels[0].ID)
+	if err != nil {
+		t.Fatalf("ListChannelPermissionRows() error = %v", err)
+	}
+	if len(channelRows) != 1 || !channelRows[0].DefaultAllowed || !channelRows[0].HasDefault {
+		t.Fatalf("channel permission rows = %#v", channelRows)
+	}
+
+	if err := store.SetUserPermission(context.Background(), users[0].ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
+	}
+	userRows, err := store.ListUserPermissionRows(context.Background(), users[0].ID)
+	if err != nil {
+		t.Fatalf("ListUserPermissionRows() error = %v", err)
+	}
+	if len(userRows) != 1 || !userRows[0].Allowed || !userRows[0].HasExplicit {
+		t.Fatalf("user permission rows = %#v", userRows)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
