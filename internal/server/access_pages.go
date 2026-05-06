@@ -22,23 +22,23 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     header form { margin: 0; }
     .brand { display: flex; align-items: baseline; gap: 10px; }
     .brand strong { font-size: 16px; }
-    .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 340px minmax(0, 1fr); overflow: hidden; }
+    .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
     aside { border-right: 1px solid var(--line); background: #fbfcfd; overflow: auto; padding: 16px; }
-    main { overflow: auto; padding: 20px 24px 28px; }
+    main { overflow: auto; padding: 16px 20px 24px; }
     h1, h2, h3 { margin: 0; line-height: 1.2; }
-    h1 { font-size: 24px; }
+    h1 { font-size: 22px; }
     h2 { font-size: 18px; }
     h3 { font-size: 15px; }
     p { margin: 0; }
     .muted { color: var(--muted); }
     .small { font-size: 12px; }
     .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-    .panel-pad, .content { padding: 16px; }
-    .stack { display: grid; gap: 14px; }
-    .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 18px; }
+    .panel-pad, .content { padding: 14px; }
+    .stack { display: grid; gap: 12px; }
+    .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 14px; }
     .tab { padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; }
     .tab.active, .tab:hover { background: #eef4ff; color: var(--accent); }
-    .channel-list, .user-list, .row-list { display: grid; gap: 8px; margin-top: 14px; }
+    .channel-list, .user-list, .row-list { display: grid; gap: 6px; margin-top: 10px; }
     .channel-link, .user-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
     .channel-link:hover, .user-link:hover { background: #f1f4f8; }
     .channel-link.active, .user-link.active { background: #eef4ff; border-color: #bed3ff; }
@@ -50,20 +50,30 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
     input[type="checkbox"] { width: auto; }
     .check { display: flex; align-items: center; gap: 8px; min-height: 38px; }
-    button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; }
+    button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; white-space: nowrap; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
     button.secondary { background: #46515f; }
     button.danger { background: var(--danger); }
     button.ghost { background: #eef1f5; color: #303846; }
-    .grid-two { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 14px; align-items: start; }
+    details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
+    details.add-panel > summary::-webkit-details-marker { display: none; }
+    details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .row-head, .perm-row { display: grid; grid-template-columns: 1.1fr 1.1fr 160px 120px; gap: 8px; align-items: center; }
-    .row-head { color: var(--muted); font-size: 12px; font-weight: 700; padding: 0 8px; }
-    .perm-row { padding: 8px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fff; }
+    .channel-form { grid-template-columns: 1fr 1fr 160px 110px 170px; }
+    .user-form { grid-template-columns: 1fr 1fr 120px 160px; }
+    .split { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mini-link { display: block; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; }
+    .mini-link:hover { background: #f7f9fc; }
+    .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
+    .perm-form { display: grid; grid-template-columns: 1fr 140px 160px; gap: 10px; align-items: end; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
     .tag.off { background: #f2f3f5; color: #697386; }
-    @media (max-width: 980px) { .app, .grid-two, .form-grid, .row-head, .perm-row { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } }
+    @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } }
   </style>
 </head>
 <body>
@@ -79,8 +89,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <button type="submit">写入演示渠道和用户</button>
           </form>
         </section>
-        <section class="panel panel-pad">
-          <h2>添加渠道</h2>
+        <details class="panel panel-pad add-panel">
+          <summary>添加渠道</summary>
           <form method="post" action="/admin/channels">
             <label>名称<input name="name" placeholder="本校默认渠道" required></label>
             <label>代码<input name="code" placeholder="school-default" required></label>
@@ -93,7 +103,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用渠道</label>
             <button type="submit">添加渠道</button>
           </form>
-        </section>
+        </details>
         <section>
           <h2>Channels</h2>
           <div class="channel-list">
@@ -113,44 +123,91 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       <div class="topline">
         <div>
           <h1>渠道与授权</h1>
-          <p class="muted">先选渠道，再维护用户、渠道默认权限和用户显式权限。</p>
+          <p class="muted">选择渠道后，在同一页维护渠道信息、provider 默认授权、用户和用户显式授权。</p>
         </div>
       </div>
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
-        <section class="grid-two">
-          <div class="stack">
-            <section class="panel panel-pad">
-              <h2>{{.Selected.Channel.Name}}</h2>
-              <form method="post" action="/admin/channels/update">
-                <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                <label>名称<input name="name" value="{{.Selected.Channel.Name}}" required></label>
-                <label>代码<input name="code" value="{{.Selected.Channel.Code}}" required></label>
-                <label>默认权限
-                  <select name="defaultPermissionMode">
-                    <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
-                    <option value="ALLOW" {{if eq .Selected.Channel.DefaultPermissionMode "ALLOW"}}selected{{end}}>默认打开</option>
-                  </select>
-                </label>
-                <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Channel.IsEnabled}}checked{{end}}> 启用渠道</label>
-                <button type="submit">保存渠道</button>
-              </form>
-            </section>
-            <section class="panel panel-pad">
-              <h2>添加用户</h2>
-              <form method="post" action="/admin/users">
-                <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                <label>外部用户 ID<input name="externalUserId" placeholder="stu-2026-001" required></label>
-                <label>显示名<input name="displayName" placeholder="教学演示用户 001" required></label>
-                <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用用户</label>
-                <button type="submit">添加用户</button>
-              </form>
-            </section>
-            <section class="panel panel-pad">
-              <h2>Users</h2>
+        <div class="stack">
+          <section class="panel content">
+            <div class="topline">
+              <div>
+                <h2>{{.Selected.Channel.Name}}</h2>
+                <p class="muted">{{.Selected.Channel.Code}} · {{.Selected.Channel.DefaultPermissionMode}}</p>
+              </div>
+              {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
+            </div>
+            <form class="form-grid channel-form" method="post" action="/admin/channels/update" data-dirty-form>
+              <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+              <label>名称<input name="name" value="{{.Selected.Channel.Name}}" required></label>
+              <label>代码<input name="code" value="{{.Selected.Channel.Code}}" required></label>
+              <label>默认权限
+                <select name="defaultPermissionMode">
+                  <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
+                  <option value="ALLOW" {{if eq .Selected.Channel.DefaultPermissionMode "ALLOW"}}selected{{end}}>默认打开</option>
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Channel.IsEnabled}}checked{{end}}> 启用</label>
+              <span class="actions">
+                <button class="secondary" type="submit" data-save disabled>保存渠道</button>
+                <button class="danger" type="submit" form="delete-channel-{{.Selected.Channel.ID}}">删除</button>
+              </span>
+            </form>
+            <form id="delete-channel-{{.Selected.Channel.ID}}" method="post" action="/admin/channels/delete">
+              <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+            </form>
+          </section>
+          <section class="panel content">
+            <div class="section-title">
+              <div>
+                <h2>渠道 Providers 授权</h2>
+                <p class="muted small">点击一个 provider/model，右侧修改该渠道的默认允许状态。</p>
+              </div>
+            </div>
+            {{if .Selected.ChannelPermissions}}
+              <div class="split" style="margin-top:12px">
+                <div class="row-list">
+                  {{range .Selected.ChannelPermissions}}
+                    <a class="mini-link {{if and (eq $.SelectedPermProviderID .ProviderID) (eq $.SelectedPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{.ProviderID}}&permModelId={{.ModelID}}&userPermProviderId={{$.SelectedUserPermProviderID}}&userPermModelId={{$.SelectedUserPermModelID}}">
+                      <span class="meta-row"><strong>{{.ProviderName}}</strong>{{if .DefaultAllowed}}<span class="tag">允许</span>{{else}}<span class="tag off">关闭</span>{{end}}</span>
+                      <span class="mono">{{.ProviderCode}} / {{.ModelCode}}</span>
+                    </a>
+                  {{end}}
+                </div>
+                {{if .SelectedChannelPermission}}
+                  <form class="perm-form" method="post" action="/admin/channel-permissions" data-dirty-form>
+                    <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                    <input type="hidden" name="providerId" value="{{.SelectedChannelPermission.ProviderID}}">
+                    <input type="hidden" name="modelId" value="{{.SelectedChannelPermission.ModelID}}">
+                    <label>授权对象<input value="{{.SelectedChannelPermission.ProviderName}} / {{.SelectedChannelPermission.ModelName}}" disabled></label>
+                    <label class="check"><input type="checkbox" name="allowed" value="1" {{if .SelectedChannelPermission.DefaultAllowed}}checked{{end}}> 默认允许</label>
+                    <button class="secondary" type="submit" data-save disabled>保存授权</button>
+                  </form>
+                {{end}}
+              </div>
+            {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
+          </section>
+          <section class="panel content">
+            <div class="section-title">
+              <div>
+                <h2>用户与用户授权</h2>
+                <p class="muted small">选择用户后，可维护用户信息和显式授权。</p>
+              </div>
+              <details class="add-panel">
+                <summary>添加用户</summary>
+                <form class="form-grid user-form" method="post" action="/admin/users">
+                  <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                  <label>外部用户 ID<input name="externalUserId" placeholder="stu-2026-001" required></label>
+                  <label>显示名<input name="displayName" placeholder="教学演示用户 001" required></label>
+                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
+                  <button type="submit">添加用户</button>
+                </form>
+              </details>
+            </div>
+            <div class="split" style="margin-top:12px">
               <div class="user-list">
                 {{range .Selected.Users}}
-                  <a class="user-link {{if eq $.SelectedUserID .ID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{.ID}}">
+                  <a class="user-link {{if eq $.SelectedUserID .ID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{.ID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}">
                     <div class="meta-row"><strong>{{.DisplayName}}</strong>{{if .IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</div>
                     <span class="mono">{{.ExternalUserID}}</span>
                   </a>
@@ -158,71 +215,87 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                   <div class="empty">这个渠道还没有用户。</div>
                 {{end}}
               </div>
-            </section>
-          </div>
-          <div class="stack">
-            <section class="panel content">
-              <h2>渠道默认授权</h2>
-              <p class="muted small">用于该渠道下没有显式用户权限时的默认判断。</p>
-              {{if .Selected.ChannelPermissions}}
-                <div class="row-list">
-                  <div class="row-head"><span>Provider</span><span>Model</span><span>默认允许</span><span>操作</span></div>
-                  {{range .Selected.ChannelPermissions}}
-                    <form class="perm-row" method="post" action="/admin/channel-permissions">
-                      <input type="hidden" name="channelId" value="{{$.Selected.Channel.ID}}">
-                      <input type="hidden" name="providerId" value="{{.ProviderID}}">
-                      <input type="hidden" name="modelId" value="{{.ModelID}}">
-                      <span>{{.ProviderName}}<br><span class="mono">{{.ProviderCode}}</span></span>
-                      <span>{{.ModelName}}<br><span class="mono">{{.ModelCode}}</span></span>
-                      <label class="check"><input type="checkbox" name="allowed" value="1" {{if .DefaultAllowed}}checked{{end}}> 允许</label>
-                      <button class="secondary" type="submit">保存</button>
-                    </form>
-                  {{end}}
-                </div>
-              {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
-            </section>
-            <section class="panel content">
-              <h2>用户显式授权</h2>
-              <p class="muted small">选择左侧用户后，可覆盖渠道默认授权。</p>
-              {{if .SelectedUser}}
-                <h3>{{.SelectedUser.DisplayName}}</h3>
-                {{if .UserPermissions}}
-                  <div class="row-list">
-                    <div class="row-head"><span>Provider</span><span>Model</span><span>显式允许</span><span>操作</span></div>
-                    {{range .UserPermissions}}
-                      <form class="perm-row" method="post" action="/admin/user-permissions">
-                        <input type="hidden" name="channelId" value="{{$.Selected.Channel.ID}}">
-                        <input type="hidden" name="userId" value="{{$.SelectedUser.ID}}">
-                        <input type="hidden" name="providerId" value="{{.ProviderID}}">
-                        <input type="hidden" name="modelId" value="{{.ModelID}}">
-                        <span>{{.ProviderName}}<br><span class="mono">{{.ProviderCode}}</span></span>
-                        <span>{{.ModelName}}<br><span class="mono">{{.ModelCode}}</span></span>
-                        <label class="check"><input type="checkbox" name="allowed" value="1" {{if .Allowed}}checked{{end}}> 允许</label>
-                        <button class="secondary" type="submit">保存</button>
-                      </form>
-                    {{end}}
-                  </div>
-                {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
-              {{else}}<div class="empty">先选择一个用户。</div>{{end}}
-            </section>
-          </div>
-        </section>
+              <div class="stack">
+                {{if .SelectedUser}}
+                  <form class="detail-form user-form" method="post" action="/admin/users/update" data-dirty-form>
+                    <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                    <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
+                    <label>外部用户 ID<input name="externalUserId" value="{{.SelectedUser.ExternalUserID}}" required></label>
+                    <label>显示名<input name="displayName" value="{{.SelectedUser.DisplayName}}" required></label>
+                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
+                    <span class="actions">
+                      <button class="secondary" type="submit" data-save disabled>保存用户</button>
+                      <button class="danger" type="submit" form="delete-user-{{.SelectedUser.ID}}">删除</button>
+                    </span>
+                  </form>
+                  <form id="delete-user-{{.SelectedUser.ID}}" method="post" action="/admin/users/delete">
+                    <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                    <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
+                  </form>
+                  {{if .UserPermissions}}
+                    <div class="split">
+                      <div class="row-list">
+                        {{range .UserPermissions}}
+                          <a class="mini-link {{if and (eq $.SelectedUserPermProviderID .ProviderID) (eq $.SelectedUserPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}&userPermModelId={{.ModelID}}">
+                            <span class="meta-row"><strong>{{.ProviderName}}</strong>{{if .Allowed}}<span class="tag">允许</span>{{else}}<span class="tag off">关闭</span>{{end}}</span>
+                            <span class="mono">{{.ProviderCode}} / {{.ModelCode}}</span>
+                          </a>
+                        {{end}}
+                      </div>
+                      {{if .SelectedUserPermission}}
+                        <form class="perm-form" method="post" action="/admin/user-permissions" data-dirty-form>
+                          <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                          <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
+                          <input type="hidden" name="providerId" value="{{.SelectedUserPermission.ProviderID}}">
+                          <input type="hidden" name="modelId" value="{{.SelectedUserPermission.ModelID}}">
+                          <label>授权对象<input value="{{.SelectedUserPermission.ProviderName}} / {{.SelectedUserPermission.ModelName}}" disabled></label>
+                          <label class="check"><input type="checkbox" name="allowed" value="1" {{if .SelectedUserPermission.Allowed}}checked{{end}}> 显式允许</label>
+                          <button class="secondary" type="submit" data-save disabled>保存授权</button>
+                        </form>
+                      {{end}}
+                    </div>
+                  {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
+                {{else}}<div class="empty">先选择一个用户。</div>{{end}}
+              </div>
+            </div>
+          </section>
+        </div>
       {{else}}
         <section class="panel empty">先添加或选择一个渠道。</section>
       {{end}}
     </main>
   </div>
+  <script>
+    document.querySelectorAll('[data-dirty-form]').forEach((form) => {
+      const save = form.querySelector('[data-save]');
+      if (!save) return;
+      const snapshot = new FormData(form);
+      const initial = JSON.stringify(Array.from(snapshot.entries()));
+      const sync = () => {
+        save.disabled = JSON.stringify(Array.from(new FormData(form).entries())) === initial;
+      };
+      form.addEventListener('input', sync);
+      form.addEventListener('change', sync);
+      sync();
+    });
+  </script>
 </body>
 </html>`))
 
 type accessPageData struct {
-	Username        string
-	Error           string
-	Channels        []channelNavItem
-	Selected        *channelPanel
-	SelectedUser    *admin.User
-	SelectedUserID  string
-	UserPermissions []admin.UserPermissionRow
+	Username                   string
+	Error                      string
+	Channels                   []channelNavItem
+	Selected                   *channelPanel
+	SelectedUser               *admin.User
+	SelectedUserID             string
+	UserPermissions            []admin.UserPermissionRow
+	SelectedChannelPermission  *admin.ChannelPermissionRow
+	SelectedPermProviderID     string
+	SelectedPermModelID        string
+	SelectedUserPermission     *admin.UserPermissionRow
+	SelectedUserPermProviderID string
+	SelectedUserPermModelID    string
 }
 
 type channelNavItem struct {
@@ -242,8 +315,10 @@ func registerAccessRoutes(mux *http.ServeMux, authService *auth.Service, store *
 	mux.HandleFunc("POST /admin/access/demo", formSeedDemoAccessHandler(store))
 	mux.HandleFunc("POST /admin/channels", formCreateChannelHandler(store))
 	mux.HandleFunc("POST /admin/channels/update", formUpdateChannelHandler(store))
+	mux.HandleFunc("POST /admin/channels/delete", formDeleteChannelHandler(store))
 	mux.HandleFunc("POST /admin/users", formCreateUserHandler(store))
 	mux.HandleFunc("POST /admin/users/update", formUpdateUserHandler(store))
+	mux.HandleFunc("POST /admin/users/delete", formDeleteUserHandler(store))
 	mux.HandleFunc("POST /admin/channel-permissions", formSetChannelPermissionHandler(store))
 	mux.HandleFunc("POST /admin/user-permissions", formSetUserPermissionHandler(store))
 }
@@ -261,7 +336,15 @@ func accessPageHandler(authService *auth.Service, store *admin.Store) http.Handl
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
-		data := accessPageData{Username: session.Username, Error: r.URL.Query().Get("error"), SelectedUserID: r.URL.Query().Get("userId")}
+		data := accessPageData{
+			Username:                   session.Username,
+			Error:                      r.URL.Query().Get("error"),
+			SelectedUserID:             r.URL.Query().Get("userId"),
+			SelectedPermProviderID:     r.URL.Query().Get("permProviderId"),
+			SelectedPermModelID:        r.URL.Query().Get("permModelId"),
+			SelectedUserPermProviderID: r.URL.Query().Get("userPermProviderId"),
+			SelectedUserPermModelID:    r.URL.Query().Get("userPermModelId"),
+		}
 		loaded, err := loadAccessPageData(r, store, data)
 		if err != nil {
 			loaded.Error = "加载渠道和授权数据失败"
@@ -295,8 +378,19 @@ func loadAccessPageData(r *http.Request, store *admin.Store, data accessPageData
 			if err != nil {
 				return data, err
 			}
+			if data.SelectedPermProviderID == "" && len(channelPermissions) > 0 {
+				data.SelectedPermProviderID = channelPermissions[0].ProviderID
+				data.SelectedPermModelID = channelPermissions[0].ModelID
+			}
 			selected := channelPanel{Channel: channel, Users: users, ChannelPermissions: channelPermissions}
 			data.Selected = &selected
+			for _, permission := range channelPermissions {
+				if permission.ProviderID == data.SelectedPermProviderID && permission.ModelID == data.SelectedPermModelID {
+					selectedPermission := permission
+					data.SelectedChannelPermission = &selectedPermission
+					break
+				}
+			}
 			for _, user := range users {
 				if user.ID == data.SelectedUserID {
 					selectedUser := user
@@ -304,6 +398,17 @@ func loadAccessPageData(r *http.Request, store *admin.Store, data accessPageData
 					data.UserPermissions, err = store.ListUserPermissionRows(r.Context(), user.ID)
 					if err != nil {
 						return data, err
+					}
+					if data.SelectedUserPermProviderID == "" && len(data.UserPermissions) > 0 {
+						data.SelectedUserPermProviderID = data.UserPermissions[0].ProviderID
+						data.SelectedUserPermModelID = data.UserPermissions[0].ModelID
+					}
+					for _, permission := range data.UserPermissions {
+						if permission.ProviderID == data.SelectedUserPermProviderID && permission.ModelID == data.SelectedUserPermModelID {
+							selectedPermission := permission
+							data.SelectedUserPermission = &selectedPermission
+							break
+						}
 					}
 					break
 				}
@@ -363,6 +468,20 @@ func formUpdateChannelHandler(store *admin.Store) http.HandlerFunc {
 	}
 }
 
+func formDeleteChannelHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectAccessError(w, r, "渠道表单格式不正确")
+			return
+		}
+		if err := store.DeleteChannel(r.Context(), r.FormValue("channelId")); err != nil {
+			redirectAccessError(w, r, "删除渠道失败："+err.Error())
+			return
+		}
+		http.Redirect(w, r, "/admin/access", http.StatusFound)
+	}
+}
+
 func formCreateUserHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -401,6 +520,21 @@ func formUpdateUserHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		redirectAccessChannel(w, r, channelID, userID)
+	}
+}
+
+func formDeleteUserHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectAccessError(w, r, "用户表单格式不正确")
+			return
+		}
+		channelID := r.FormValue("channelId")
+		if err := store.DeleteUser(r.Context(), r.FormValue("userId")); err != nil {
+			redirectAccessError(w, r, "删除用户失败："+err.Error())
+			return
+		}
+		redirectAccessChannel(w, r, channelID, "")
 	}
 }
 

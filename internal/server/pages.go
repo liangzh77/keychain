@@ -54,11 +54,11 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     header form { margin: 0; }
     .brand { display: flex; align-items: baseline; gap: 10px; }
     .brand strong { font-size: 16px; }
-    .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 320px minmax(0, 1fr); overflow: hidden; }
+    .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
     aside { border-right: 1px solid var(--line); background: #fbfcfd; overflow: auto; padding: 16px; }
-    main { overflow: auto; padding: 20px 24px 28px; }
+    main { overflow: auto; padding: 16px 20px 24px; }
     h1, h2, h3 { margin: 0; line-height: 1.2; }
-    h1 { font-size: 24px; letter-spacing: 0; }
+    h1 { font-size: 22px; letter-spacing: 0; }
     h2 { font-size: 18px; }
     h3 { font-size: 15px; }
     p { margin: 0; }
@@ -66,45 +66,49 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .small { font-size: 12px; }
     .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
     .panel-pad { padding: 16px; }
-    .stack { display: grid; gap: 14px; }
-    .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 18px; }
-    .provider-list { display: grid; gap: 8px; margin-top: 14px; }
+    .stack { display: grid; gap: 12px; }
+    .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 14px; }
+    .provider-list, .compact-list { display: grid; gap: 6px; margin-top: 10px; }
     .provider-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
     .provider-link:hover { background: #f1f4f8; }
     .provider-link.active { background: #eef4ff; border-color: #bed3ff; }
     .provider-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .provider-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 0 16px; }
-    .tab { padding: 12px 12px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; font-weight: 700; font-size: 14px; }
-    .tab.active { color: var(--accent); border-color: var(--accent); }
-    .content { padding: 16px; }
+    .tab { padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; }
+    .tab.active, .tab:hover { background: #eef4ff; color: var(--accent); }
+    .content { padding: 14px; }
     form { display: grid; gap: 10px; }
     form[id^="delete-"] { display: none; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .form-grid.models { grid-template-columns: 1.2fr 1.2fr 120px 100px; }
-    .form-grid.keys { grid-template-columns: 1fr 1.3fr 90px 110px 110px 100px; }
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr 220px 120px 120px; gap: 10px; align-items: end; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr 220px 120px 150px; gap: 10px; align-items: end; }
+    .detail-grid { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
+    .key-form { grid-template-columns: 1fr 1.3fr 90px 130px 150px; }
+    .model-form { grid-template-columns: 1fr 1fr 130px 150px; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #384252; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
     input[type="checkbox"] { width: auto; }
     .check { display: flex; align-items: center; gap: 8px; height: 38px; }
-    button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; }
+    button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; white-space: nowrap; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
     button.secondary { background: #46515f; }
     button.danger { background: var(--danger); }
     button.ghost { background: #eef1f5; color: #303846; }
-    .row-list { display: grid; gap: 8px; margin-top: 14px; }
-    .row-head, .row-edit { display: grid; gap: 8px; align-items: center; }
-    .row-head { color: var(--muted); font-size: 12px; font-weight: 700; padding: 0 8px; }
-    .row-edit { padding: 8px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fff; }
-    .row-edit.models, .row-head.models { grid-template-columns: 1fr 1fr 130px 150px; }
-    .row-edit.keys, .row-head.keys { grid-template-columns: 1fr 1.4fr 90px 170px 150px; }
-    .actions { display: flex; gap: 6px; }
+    details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
+    details.add-panel > summary::-webkit-details-marker { display: none; }
+    details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .mini-link { display: block; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; }
+    .mini-link:hover { background: #f7f9fc; }
+    .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
+    .mini-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
     .tag.off { background: #f2f3f5; color: #697386; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
-    @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .form-grid.models, .form-grid.keys, .settings-grid, .row-edit.models, .row-head.models, .row-edit.keys, .row-head.keys { grid-template-columns: 1fr; } }
+    @media (max-width: 980px) { .app, .detail-grid { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -115,8 +119,8 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
   <div class="app">
     <aside>
       <div class="stack">
-        <section class="panel panel-pad">
-          <h2>添加 Provider</h2>
+        <details class="panel panel-pad add-panel">
+          <summary>添加 Provider</summary>
           <form method="post" action="/admin/providers">
             <label>名称<input name="name" placeholder="OpenAI" required></label>
             <label>代码<input name="code" placeholder="openai" required></label>
@@ -129,12 +133,12 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用 provider</label>
             <button type="submit">添加 provider</button>
           </form>
-        </section>
+        </details>
         <section>
           <h2>Providers</h2>
           <div class="provider-list">
             {{range .Providers}}
-              <a class="provider-link {{if .IsActive}}active{{end}}" href="/admin?providerId={{.Provider.ID}}&tab={{$.ActiveTab}}">
+              <a class="provider-link {{if .IsActive}}active{{end}}" href="/admin?providerId={{.Provider.ID}}">
                 <div class="provider-row">
                   <strong>{{.Provider.Name}}</strong>
                   {{if .Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
@@ -154,131 +158,177 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     <main>
       <div class="topline">
         <div>
-          <h1>后台控制台</h1>
-          <p class="muted">已登录为 {{.Username}}。在左侧选择 provider，右侧用 tab 管理模型、keys 和设置。</p>
+          <h1>Providers</h1>
+          <p class="muted">已登录为 {{.Username}}。选择一个 provider 后，在同一页维护 provider、keys 和 models。</p>
         </div>
       </div>
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
-        <section class="panel">
-          <div class="content">
-            <div class="topline">
-              <div>
-                <h2>{{.Selected.Provider.Name}}</h2>
-                <p class="muted">{{.Selected.Provider.Code}} · {{.Selected.Provider.RotationStrategy}}</p>
-              </div>
-              {{if .Selected.Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
+        <div class="stack">
+        <section class="panel content">
+          <div class="topline">
+            <div>
+              <h2>{{.Selected.Provider.Name}}</h2>
+              <p class="muted">{{.Selected.Provider.Code}} · {{.Selected.Provider.RotationStrategy}}</p>
             </div>
+            {{if .Selected.Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
           </div>
-          <nav class="tabs">
-            <a class="tab {{if eq .ActiveTab "models"}}active{{end}}" href="/admin?providerId={{.Selected.Provider.ID}}&tab=models">Models</a>
-            <a class="tab {{if eq .ActiveTab "keys"}}active{{end}}" href="/admin?providerId={{.Selected.Provider.ID}}&tab=keys">Keys</a>
-            <a class="tab {{if eq .ActiveTab "settings"}}active{{end}}" href="/admin?providerId={{.Selected.Provider.ID}}&tab=settings">Provider 设置</a>
-          </nav>
-          <div class="content">
-            {{if eq .ActiveTab "models"}}
-              <form class="form-grid models" method="post" action="/admin/models">
-                <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                <label>名称<input name="name" placeholder="GPT 4.1" required></label>
-                <label>代码<input name="code" placeholder="gpt-4.1" required></label>
-                <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
-                <button type="submit">添加 model</button>
-              </form>
-              {{if .Selected.Models}}
-                <div class="row-list">
-                  <div class="row-head models"><span>名称</span><span>代码</span><span>状态</span><span>操作</span></div>
-                  {{range .Selected.Models}}
-                    <form class="row-edit models" method="post" action="/admin/models/update">
-                      <input type="hidden" name="providerId" value="{{$.Selected.Provider.ID}}">
-                      <input type="hidden" name="modelId" value="{{.ID}}">
-                      <input name="name" value="{{.Name}}" required>
-                      <input name="code" value="{{.Code}}" required>
-                      <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .IsEnabled}}checked{{end}}> 启用</label>
-                      <span class="actions">
-                        <button class="secondary" type="submit">保存</button>
-                        <button class="danger" type="submit" form="delete-model-{{.ID}}">删除</button>
-                      </span>
-                    </form>
-                    <form id="delete-model-{{.ID}}" method="post" action="/admin/models/delete">
-                      <input type="hidden" name="providerId" value="{{$.Selected.Provider.ID}}">
-                      <input type="hidden" name="modelId" value="{{.ID}}">
-                    </form>
-                  {{end}}
-                </div>
-              {{else}}<div class="empty">这个 provider 还没有 model。</div>{{end}}
-            {{end}}
-            {{if eq .ActiveTab "keys"}}
-              <form class="form-grid keys" method="post" action="/admin/keys">
+          <form class="settings-grid" method="post" action="/admin/providers/update" data-dirty-form>
+            <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+            <label>名称<input name="name" value="{{.Selected.Provider.Name}}" required></label>
+            <label>代码<input name="code" value="{{.Selected.Provider.Code}}" required></label>
+            <label>Key 分发策略
+              <select name="rotationStrategy">
+                <option value="ROUND_ROBIN" {{if eq .Selected.Provider.RotationStrategy "ROUND_ROBIN"}}selected{{end}}>轮询分发</option>
+                <option value="STICKY_FIRST_AVAILABLE" {{if eq .Selected.Provider.RotationStrategy "STICKY_FIRST_AVAILABLE"}}selected{{end}}>优先第一个可用 key</option>
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Provider.IsEnabled}}checked{{end}}> 启用</label>
+            <span class="actions">
+              <button class="secondary" type="submit" data-save disabled>保存</button>
+              <button class="danger" type="submit" form="delete-provider-{{.Selected.Provider.ID}}">删除</button>
+            </span>
+          </form>
+          <form id="delete-provider-{{.Selected.Provider.ID}}" method="post" action="/admin/providers/delete">
+            <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+          </form>
+        </section>
+        <section class="panel content">
+          <div class="section-title">
+            <div>
+              <h2>Keys</h2>
+              <p class="muted small">列表中显示别名和掩码，选中后在右侧修改。</p>
+            </div>
+            <details class="add-panel">
+              <summary>添加 Key</summary>
+              <form class="form-grid key-form" method="post" action="/admin/keys">
                 <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                 <label>别名<input name="alias" placeholder="openai-main-01" required></label>
                 <label>Key 明文<input name="secretValue" placeholder="sk-..." required></label>
                 <label>排序<input name="sortOrder" type="number" value="0"></label>
-                <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
-                <label class="check"><input type="checkbox" name="isAvailable" value="1" checked> 可用</label>
+                <span>
+                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
+                  <label class="check"><input type="checkbox" name="isAvailable" value="1" checked> 可用</label>
+                </span>
                 <button type="submit">添加 key</button>
               </form>
-              {{if .Selected.Keys}}
-                <div class="row-list">
-                  <div class="row-head keys"><span>别名</span><span>掩码 / 替换明文</span><span>排序</span><span>状态</span><span>操作</span></div>
-                  {{range .Selected.Keys}}
-                    <form class="row-edit keys" method="post" action="/admin/keys/update">
-                      <input type="hidden" name="providerId" value="{{$.Selected.Provider.ID}}">
-                      <input type="hidden" name="keyId" value="{{.ID}}">
-                      <input name="alias" value="{{.Alias}}" required>
-                      <input name="secretValue" placeholder="{{.MaskedValue}}，留空不替换">
-                      <input name="sortOrder" type="number" value="{{.SortOrder}}">
-                      <span>
-                        <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .IsEnabled}}checked{{end}}> 启用</label>
-                        <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .IsAvailable}}checked{{end}}> 可用</label>
-                      </span>
-                      <span class="actions">
-                        <button class="secondary" type="submit">保存</button>
-                        <button class="danger" type="submit" form="delete-key-{{.ID}}">删除</button>
-                      </span>
-                    </form>
-                    <form id="delete-key-{{.ID}}" method="post" action="/admin/keys/delete">
-                      <input type="hidden" name="providerId" value="{{$.Selected.Provider.ID}}">
-                      <input type="hidden" name="keyId" value="{{.ID}}">
-                    </form>
+            </details>
+          </div>
+          {{if .Selected.Keys}}
+            <div class="detail-grid" style="margin-top:12px">
+              <div class="compact-list">
+                {{range .Selected.Keys}}
+                  <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
+                    <span class="mini-title"><strong>{{.Alias}}</strong>{{if .IsAvailable}}<span class="tag">可用</span>{{else}}<span class="tag off">不可用</span>{{end}}</span>
+                    <span class="mono">{{.MaskedValue}}</span>
+                  </a>
+                {{end}}
+              </div>
+              {{if .SelectedKey}}
+                <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
+                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                  <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
+                  <label>别名<input name="alias" value="{{.SelectedKey.Alias}}" required></label>
+                  <label>替换明文<input name="secretValue" placeholder="{{.SelectedKey.MaskedValue}}，留空不替换"></label>
+                  <label>排序<input name="sortOrder" type="number" value="{{.SelectedKey.SortOrder}}"></label>
+                  <span>
+                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedKey.IsEnabled}}checked{{end}}> 启用</label>
+                    <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
+                  </span>
+                  <span class="actions">
+                    <button class="secondary" type="submit" data-save disabled>保存</button>
+                    <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
+                  </span>
+                </form>
+                <form id="delete-key-{{.SelectedKey.ID}}" method="post" action="/admin/keys/delete">
+                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                  <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
+                </form>
+              {{end}}
+            </div>
+          {{else}}<div class="empty">这个 provider 还没有 key。</div>{{end}}
+        </section>
+        <section class="panel content">
+          <div class="content">
+            <div class="section-title">
+              <div>
+                <h2>Models</h2>
+                <p class="muted small">选择 model 后在详情区修改名称、代码和启用状态。</p>
+              </div>
+              <details class="add-panel">
+                <summary>添加 Model</summary>
+                <form class="form-grid model-form" method="post" action="/admin/models">
+                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                  <label>名称<input name="name" placeholder="GPT 4.1" required></label>
+                  <label>代码<input name="code" placeholder="gpt-4.1" required></label>
+                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
+                  <button type="submit">添加 model</button>
+                </form>
+              </details>
+            </div>
+            {{if .Selected.Models}}
+              <div class="detail-grid" style="margin-top:12px">
+                <div class="compact-list">
+                  {{range .Selected.Models}}
+                    <a class="mini-link {{if eq $.SelectedModelID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{$.SelectedKeyID}}&modelId={{.ID}}">
+                      <span class="mini-title"><strong>{{.Name}}</strong>{{if .IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</span>
+                      <span class="mono">{{.Code}}</span>
+                    </a>
                   {{end}}
                 </div>
-              {{else}}<div class="empty">这个 provider 还没有 key。</div>{{end}}
-            {{end}}
-            {{if eq .ActiveTab "settings"}}
-              <form class="settings-grid" method="post" action="/admin/providers/update">
-                <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                <label>名称<input name="name" value="{{.Selected.Provider.Name}}" required></label>
-                <label>代码<input name="code" value="{{.Selected.Provider.Code}}" required></label>
-                <label>Key 分发策略
-                  <select name="rotationStrategy">
-                    <option value="ROUND_ROBIN" {{if eq .Selected.Provider.RotationStrategy "ROUND_ROBIN"}}selected{{end}}>轮询分发</option>
-                    <option value="STICKY_FIRST_AVAILABLE" {{if eq .Selected.Provider.RotationStrategy "STICKY_FIRST_AVAILABLE"}}selected{{end}}>优先第一个可用 key</option>
-                  </select>
-                </label>
-                <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Provider.IsEnabled}}checked{{end}}> 启用</label>
-                <button type="submit">保存</button>
-              </form>
-              <form method="post" action="/admin/providers/delete" style="margin-top:14px">
-                <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                <button class="danger" type="submit">删除这个 provider</button>
-              </form>
-            {{end}}
+                {{if .SelectedModel}}
+                  <form class="detail-form model-form" method="post" action="/admin/models/update" data-dirty-form>
+                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
+                    <label>名称<input name="name" value="{{.SelectedModel.Name}}" required></label>
+                    <label>代码<input name="code" value="{{.SelectedModel.Code}}" required></label>
+                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedModel.IsEnabled}}checked{{end}}> 启用</label>
+                    <span class="actions">
+                      <button class="secondary" type="submit" data-save disabled>保存</button>
+                      <button class="danger" type="submit" form="delete-model-{{.SelectedModel.ID}}">删除</button>
+                    </span>
+                  </form>
+                  <form id="delete-model-{{.SelectedModel.ID}}" method="post" action="/admin/models/delete">
+                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
+                  </form>
+                {{end}}
+              </div>
+            {{else}}<div class="empty">这个 provider 还没有 model。</div>{{end}}
           </div>
         </section>
+        </div>
       {{else}}
         <section class="panel empty">先在左侧添加一个 provider。</section>
       {{end}}
     </main>
   </div>
+  <script>
+    document.querySelectorAll('[data-dirty-form]').forEach((form) => {
+      const save = form.querySelector('[data-save]');
+      if (!save) return;
+      const snapshot = new FormData(form);
+      const initial = JSON.stringify(Array.from(snapshot.entries()));
+      const sync = () => {
+        save.disabled = JSON.stringify(Array.from(new FormData(form).entries())) === initial;
+      };
+      form.addEventListener('input', sync);
+      form.addEventListener('change', sync);
+      sync();
+    });
+  </script>
 </body>
 </html>`))
 
 type adminPageData struct {
-	Username  string
-	Error     string
-	Providers []providerNavItem
-	Selected  *providerPanel
-	ActiveTab string
+	Username        string
+	Error           string
+	Providers       []providerNavItem
+	Selected        *providerPanel
+	SelectedKey     *admin.APIKey
+	SelectedKeyID   string
+	SelectedModel   *admin.Model
+	SelectedModelID string
 }
 
 type providerNavItem struct {
@@ -365,7 +415,7 @@ func adminPageHandler(authService *auth.Service, store *admin.Store) http.Handle
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		data := adminPageData{Username: session.Username, Error: r.URL.Query().Get("error"), ActiveTab: activeTab(r)}
+		data := adminPageData{Username: session.Username, Error: r.URL.Query().Get("error"), SelectedKeyID: r.URL.Query().Get("keyId"), SelectedModelID: r.URL.Query().Get("modelId")}
 		if store != nil {
 			loaded, err := loadAdminPageData(r, store, data)
 			if err != nil {
@@ -399,7 +449,7 @@ func formCreateProviderHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "添加 provider 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, provider.ID, "settings")
+		redirectToProvider(w, r, provider.ID)
 	}
 }
 
@@ -420,7 +470,7 @@ func formUpdateProviderHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "保存 provider 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "settings")
+		redirectToProvider(w, r, providerID)
 	}
 }
 
@@ -445,7 +495,7 @@ func formCreateModelHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		providerID := r.FormValue("providerId")
-		_, err := store.CreateModel(r.Context(), admin.CreateModelInput{
+		model, err := store.CreateModel(r.Context(), admin.CreateModelInput{
 			ProviderID: providerID,
 			Name:       r.FormValue("name"),
 			Code:       r.FormValue("code"),
@@ -455,7 +505,7 @@ func formCreateModelHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "添加 model 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "models")
+		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&modelId="+template.URLQueryEscaper(model.ID), http.StatusFound)
 	}
 }
 
@@ -475,7 +525,7 @@ func formUpdateModelHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "保存 model 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "models")
+		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&modelId="+template.URLQueryEscaper(r.FormValue("modelId")), http.StatusFound)
 	}
 }
 
@@ -490,7 +540,7 @@ func formDeleteModelHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "删除 model 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "models")
+		redirectToProvider(w, r, providerID)
 	}
 }
 
@@ -501,7 +551,7 @@ func formCreateKeyHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		providerID := r.FormValue("providerId")
-		_, err := store.CreateAPIKey(r.Context(), admin.CreateAPIKeyInput{
+		apiKey, err := store.CreateAPIKey(r.Context(), admin.CreateAPIKeyInput{
 			ProviderID:  providerID,
 			Alias:       r.FormValue("alias"),
 			SecretValue: r.FormValue("secretValue"),
@@ -513,7 +563,7 @@ func formCreateKeyHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "添加 key 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "keys")
+		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&keyId="+template.URLQueryEscaper(apiKey.ID), http.StatusFound)
 	}
 }
 
@@ -535,7 +585,7 @@ func formUpdateKeyHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "保存 key 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "keys")
+		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&keyId="+template.URLQueryEscaper(r.FormValue("keyId")), http.StatusFound)
 	}
 }
 
@@ -550,7 +600,7 @@ func formDeleteKeyHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "删除 key 失败："+err.Error())
 			return
 		}
-		redirectToProvider(w, r, providerID, "keys")
+		redirectToProvider(w, r, providerID)
 	}
 }
 
@@ -582,26 +632,35 @@ func loadAdminPageData(r *http.Request, store *admin.Store, data adminPageData) 
 		}
 		data.Providers = append(data.Providers, item)
 		if provider.ID == selectedID {
+			if data.SelectedKeyID == "" && len(keys) > 0 {
+				data.SelectedKeyID = keys[0].ID
+			}
+			if data.SelectedModelID == "" && len(models) > 0 {
+				data.SelectedModelID = models[0].ID
+			}
 			selectedProvider := providerPanel{Provider: provider, Models: models, Keys: keys}
 			data.Selected = &selectedProvider
+			for _, key := range keys {
+				if key.ID == data.SelectedKeyID {
+					selectedKey := key
+					data.SelectedKey = &selectedKey
+					break
+				}
+			}
+			for _, model := range models {
+				if model.ID == data.SelectedModelID {
+					selectedModel := model
+					data.SelectedModel = &selectedModel
+					break
+				}
+			}
 		}
 	}
 	return data, nil
 }
 
-func activeTab(r *http.Request) string {
-	switch r.URL.Query().Get("tab") {
-	case "keys":
-		return "keys"
-	case "settings":
-		return "settings"
-	default:
-		return "models"
-	}
-}
-
-func redirectToProvider(w http.ResponseWriter, r *http.Request, providerID string, tab string) {
-	http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&tab="+template.URLQueryEscaper(tab), http.StatusFound)
+func redirectToProvider(w http.ResponseWriter, r *http.Request, providerID string) {
+	http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID), http.StatusFound)
 }
 
 func redirectAdminError(w http.ResponseWriter, r *http.Request, message string) {
