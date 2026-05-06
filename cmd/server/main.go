@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/liangzh77/keychain/internal/admin"
 	"github.com/liangzh77/keychain/internal/auth"
 	"github.com/liangzh77/keychain/internal/config"
 	keydb "github.com/liangzh77/keychain/internal/db"
@@ -50,9 +51,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	adminStore, err := admin.NewStore(admin.Options{DB: database.SQL(), Now: time.Now})
+	if err != nil {
+		logger.Error("failed to initialize admin store", "error", err)
+		os.Exit(1)
+	}
+
 	httpServer := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping, Auth: authService}),
+		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping, Auth: authService, AdminStore: adminStore}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

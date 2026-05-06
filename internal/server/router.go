@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/liangzh77/keychain/internal/admin"
 	"github.com/liangzh77/keychain/internal/auth"
 )
 
@@ -12,6 +13,7 @@ type Options struct {
 	Now         func() time.Time
 	HealthCheck func(context.Context) error
 	Auth        *auth.Service
+	AdminStore  *admin.Store
 }
 
 func NewRouter(options Options) http.Handler {
@@ -23,7 +25,12 @@ func NewRouter(options Options) http.Handler {
 	mux.HandleFunc("GET /api/health", healthHandlerWithCheck(options.Now, options.HealthCheck))
 	if options.Auth != nil {
 		registerAuthRoutes(mux, options.Auth)
-		registerPageRoutes(mux, options.Auth)
+		if options.AdminStore != nil {
+			registerAdminAPIRoutes(mux, options.Auth, options.AdminStore)
+			registerPageRoutes(mux, options.Auth, options.AdminStore)
+		} else {
+			registerPageRoutes(mux, options.Auth, nil)
+		}
 	}
 	return withJSONHeaders(mux)
 }

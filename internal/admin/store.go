@@ -1,0 +1,301 @@
+package admin
+
+import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/base64"
+	"fmt"
+	"strings"
+	"time"
+)
+
+type Store struct {
+	db  *sql.DB
+	now func() time.Time
+}
+
+type Options struct {
+	DB  *sql.DB
+	Now func() time.Time
+}
+
+type Provider struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Code             string `json:"code"`
+	IsEnabled        bool   `json:"isEnabled"`
+	RotationStrategy string `json:"rotationStrategy"`
+	CreatedAt        string `json:"createdAt"`
+	UpdatedAt        string `json:"updatedAt"`
+}
+
+type Model struct {
+	ID         string `json:"id"`
+	ProviderID string `json:"providerId"`
+	Name       string `json:"name"`
+	Code       string `json:"code"`
+	IsEnabled  bool   `json:"isEnabled"`
+}
+
+type APIKey struct {
+	ID           string  `json:"id"`
+	ProviderID   string  `json:"providerId"`
+	Alias        string  `json:"alias"`
+	MaskedValue  string  `json:"maskedValue"`
+	IsEnabled    bool    `json:"isEnabled"`
+	IsAvailable  bool    `json:"isAvailable"`
+	SortOrder    int     `json:"sortOrder"`
+	FailureCount int     `json:"failureCount"`
+	LastFailedAt *string `json:"lastFailedAt"`
+}
+
+type CreateProviderInput struct {
+	Name             string
+	Code             string
+	IsEnabled        bool
+	RotationStrategy string
+}
+
+type CreateModelInput struct {
+	ProviderID string
+	Name       string
+	Code       string
+	IsEnabled  bool
+}
+
+type CreateAPIKeyInput struct {
+	ProviderID  string
+	Alias       string
+	SecretValue string
+	IsEnabled   bool
+	IsAvailable bool
+	SortOrder   int
+}
+
+func NewStore(options Options) (*Store, error) {
+	if options.DB == nil {
+		return nil, fmt.Errorf("admin database is required")
+	}
+	if options.Now == nil {
+		options.Now = time.Now
+	}
+	return &Store{db: options.DB, now: options.Now}, nil
+}
+
+func (store *Store) ListProviders(ctx context.Context) ([]Provider, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT id, name, code, is_enabled, rotation_strategy, created_at, updated_at
+FROM providers
+ORDER BY created_at DESC, name ASC;
+`)
+	if err != nil {
+		return nil, fmt.Errorf("list providers: %w", err)
+	}
+	defer rows.Close()
+
+	var providers []Provider
+	for rows.Next() {
+		var provider Provider
+		var isEnabled int
+		if err := rows.Scan(&provider.ID, &provider.Name, &provider.Code, &isEnabled, &provider.RotationStrategy, &provider.CreatedAt, &provider.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan provider: %w", err)
+		}
+		provider.IsEnabled = isEnabled == 1
+		providers = append(providers, provider)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate providers: %w", err)
+	}
+	return providers, nil
+}
+
+func (store *Store) CreateProvider(ctx context.Context, input CreateProviderInput) (Provider, error) {
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if input.Name == "" || input.Code == "" {
+		return Provider{}, fmt.Errorf("provider name and code are required")
+	}
+	if input.RotationStrategy == "" {
+		input.RotationStrategy = "ROUND_ROBIN"
+	}
+	if input.RotationStrategy != "ROUND_ROBIN" && input.RotationStrategy != "STICKY_FIRST_AVAILABLE" {
+		return Provider{}, fmt.Errorf("invalid rotation strategy")
+	}
+
+	now := formatTime(store.now())
+	provider := Provider{
+		ID:               newID("provider"),
+		Name:             input.Name,
+		Code:             input.Code,
+		IsEnabled:        input.IsEnabled,
+		RotationStrategy: input.RotationStrategy,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO providers (id, name, code, is_enabled, rotation_strategy, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+`, provider.ID, provider.Name, provider.Code, boolToInt(provider.IsEnabled), provider.RotationStrategy, provider.CreatedAt, provider.UpdatedAt); err != nil {
+		return Provider{}, fmt.Errorf("create provider: %w", err)
+	}
+	return provider, nil
+}
+
+func (store *Store) ListModels(ctx context.Context, providerID string, providerCode string) ([]Model, error) {
+	providerID = strings.TrimSpace(providerID)
+	providerCode = strings.TrimSpace(providerCode)
+	if providerID == "" && providerCode == "" {
+		return nil, fmt.Errorf("providerId or providerCode is required")
+	}
+
+	query := `
+SELECT models.id, models.provider_id, models.name, models.code, models.is_enabled
+FROM models
+JOIN providers ON providers.id = models.provider_id
+WHERE models.provider_id = ? OR providers.code = ?
+ORDER BY models.created_at DESC, models.name ASC;
+`
+	rows, err := store.db.QueryContext(ctx, query, providerID, providerCode)
+	if err != nil {
+		return nil, fmt.Errorf("list models: %w", err)
+	}
+	defer rows.Close()
+
+	var models []Model
+	for rows.Next() {
+		var model Model
+		var isEnabled int
+		if err := rows.Scan(&model.ID, &model.ProviderID, &model.Name, &model.Code, &isEnabled); err != nil {
+			return nil, fmt.Errorf("scan model: %w", err)
+		}
+		model.IsEnabled = isEnabled == 1
+		models = append(models, model)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate models: %w", err)
+	}
+	return models, nil
+}
+
+func (store *Store) CreateModel(ctx context.Context, input CreateModelInput) (Model, error) {
+	input.ProviderID = strings.TrimSpace(input.ProviderID)
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if input.ProviderID == "" || input.Name == "" || input.Code == "" {
+		return Model{}, fmt.Errorf("provider id, model name and code are required")
+	}
+
+	now := formatTime(store.now())
+	model := Model{
+		ID:         newID("model"),
+		ProviderID: input.ProviderID,
+		Name:       input.Name,
+		Code:       input.Code,
+		IsEnabled:  input.IsEnabled,
+	}
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO models (id, provider_id, name, code, is_enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+`, model.ID, model.ProviderID, model.Name, model.Code, boolToInt(model.IsEnabled), now, now); err != nil {
+		return Model{}, fmt.Errorf("create model: %w", err)
+	}
+	return model, nil
+}
+
+func (store *Store) ListAPIKeys(ctx context.Context, providerID string) ([]APIKey, error) {
+	providerID = strings.TrimSpace(providerID)
+	query := `
+SELECT id, provider_id, alias, secret_value, is_enabled, is_available, sort_order, failure_count, last_failed_at
+FROM api_keys
+`
+	var args []any
+	if providerID != "" {
+		query += "WHERE provider_id = ? "
+		args = append(args, providerID)
+	}
+	query += "ORDER BY sort_order ASC, created_at DESC, alias ASC;"
+
+	rows, err := store.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list api keys: %w", err)
+	}
+	defer rows.Close()
+
+	var keys []APIKey
+	for rows.Next() {
+		var key APIKey
+		var secretValue string
+		var isEnabled int
+		var isAvailable int
+		var lastFailedAt sql.NullString
+		if err := rows.Scan(&key.ID, &key.ProviderID, &key.Alias, &secretValue, &isEnabled, &isAvailable, &key.SortOrder, &key.FailureCount, &lastFailedAt); err != nil {
+			return nil, fmt.Errorf("scan api key: %w", err)
+		}
+		key.MaskedValue = MaskSecret(secretValue)
+		key.IsEnabled = isEnabled == 1
+		key.IsAvailable = isAvailable == 1
+		if lastFailedAt.Valid {
+			key.LastFailedAt = &lastFailedAt.String
+		}
+		keys = append(keys, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate api keys: %w", err)
+	}
+	return keys, nil
+}
+
+func (store *Store) CreateAPIKey(ctx context.Context, input CreateAPIKeyInput) (APIKey, error) {
+	input.ProviderID = strings.TrimSpace(input.ProviderID)
+	input.Alias = strings.TrimSpace(input.Alias)
+	input.SecretValue = strings.TrimSpace(input.SecretValue)
+	if input.ProviderID == "" || input.Alias == "" || input.SecretValue == "" {
+		return APIKey{}, fmt.Errorf("provider id, key alias and secret value are required")
+	}
+
+	now := formatTime(store.now())
+	key := APIKey{
+		ID:          newID("key"),
+		ProviderID:  input.ProviderID,
+		Alias:       input.Alias,
+		MaskedValue: MaskSecret(input.SecretValue),
+		IsEnabled:   input.IsEnabled,
+		IsAvailable: input.IsAvailable,
+		SortOrder:   input.SortOrder,
+	}
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO api_keys (id, provider_id, alias, secret_value, is_enabled, is_available, sort_order, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+`, key.ID, key.ProviderID, key.Alias, input.SecretValue, boolToInt(key.IsEnabled), boolToInt(key.IsAvailable), key.SortOrder, now, now); err != nil {
+		return APIKey{}, fmt.Errorf("create api key: %w", err)
+	}
+	return key, nil
+}
+
+func MaskSecret(secret string) string {
+	secret = strings.TrimSpace(secret)
+	if len(secret) <= 8 {
+		return "****"
+	}
+	return secret[:3] + "****" + secret[len(secret)-4:]
+}
+
+func newID(prefix string) string {
+	var bytes [12]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		panic(fmt.Sprintf("generate id: %v", err))
+	}
+	return prefix + "_" + base64.RawURLEncoding.EncodeToString(bytes[:])
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func formatTime(value time.Time) string {
+	return value.UTC().Format(time.RFC3339)
+}
