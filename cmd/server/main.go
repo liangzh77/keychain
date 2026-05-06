@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/liangzh77/keychain/internal/auth"
 	"github.com/liangzh77/keychain/internal/config"
 	keydb "github.com/liangzh77/keychain/internal/db"
 	"github.com/liangzh77/keychain/internal/server"
@@ -38,9 +39,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	authService, err := auth.NewService(auth.Options{
+		DB:            database.SQL(),
+		AdminUsername: cfg.AdminUsername,
+		AdminPassword: cfg.AdminPassword,
+		SessionSecret: cfg.SessionSecret,
+	})
+	if err != nil {
+		logger.Error("failed to initialize auth service", "error", err)
+		os.Exit(1)
+	}
+
 	httpServer := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping}),
+		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping, Auth: authService}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
