@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 )
 
 type Options struct {
-	Now func() time.Time
+	Now         func() time.Time
+	HealthCheck func(context.Context) error
 }
 
 func NewRouter(options Options) http.Handler {
@@ -15,7 +17,7 @@ func NewRouter(options Options) http.Handler {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", healthHandler(options.Now))
+	mux.HandleFunc("GET /api/health", healthHandlerWithCheck(options.Now, options.HealthCheck))
 	return withJSONHeaders(mux)
 }
 

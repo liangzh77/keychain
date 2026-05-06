@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/liangzh77/keychain/internal/config"
+	keydb "github.com/liangzh77/keychain/internal/db"
 	"github.com/liangzh77/keychain/internal/server"
 )
 
@@ -25,9 +26,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	database, err := keydb.Open(context.Background(), cfg.DatabasePath)
+	if err != nil {
+		logger.Error("failed to open database", "error", err)
+		os.Exit(1)
+	}
+	defer database.Close()
+
+	if err := database.Migrate(context.Background()); err != nil {
+		logger.Error("failed to migrate database", "error", err)
+		os.Exit(1)
+	}
+
 	httpServer := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      server.NewRouter(server.Options{Now: time.Now}),
+		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

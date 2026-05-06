@@ -39,6 +39,8 @@ go run ./cmd/server
 
 服务默认监听 `:8080`，健康检查地址为 `GET /api/health`。可以在 `.env` 中设置 `HTTP_ADDR` 覆盖监听地址，例如 `HTTP_ADDR=127.0.0.1:8081`。
 
+启动时会自动打开 `DATABASE_PATH` 指向的 SQLite 数据库，开启 WAL，并执行内置迁移。
+
 ## 下一步
 
 建议按以下顺序实现：

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -14,10 +15,21 @@ type healthResponse struct {
 }
 
 func healthHandler(now func() time.Time) http.HandlerFunc {
+	return healthHandlerWithCheck(now, nil)
+}
+
+func healthHandlerWithCheck(now func() time.Time, healthCheck func(context.Context) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		databaseStatus := "not_configured"
+		if healthCheck != nil {
+			databaseStatus = "ok"
+			if err := healthCheck(r.Context()); err != nil {
+				databaseStatus = "error"
+			}
+		}
 		web.WriteJSON(w, http.StatusOK, healthResponse{
 			Status:   "ok",
-			Database: "not_configured",
+			Database: databaseStatus,
 			Time:     now().UTC().Format(time.RFC3339),
 		})
 	}

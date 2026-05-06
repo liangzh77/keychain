@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -33,5 +34,26 @@ func TestHealthReturnsOK(t *testing.T) {
 	}
 	if body.Time != "2026-05-06T01:02:03Z" {
 		t.Fatalf("time = %q, want fixed time", body.Time)
+	}
+}
+
+func TestHealthIncludesDatabaseStatus(t *testing.T) {
+	handler := NewRouter(Options{
+		HealthCheck: func(_ context.Context) error {
+			return nil
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	var body healthResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Database != "ok" {
+		t.Fatalf("database = %q, want ok", body.Database)
 	}
 }
