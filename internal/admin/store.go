@@ -73,6 +73,27 @@ type CreateAPIKeyInput struct {
 	SortOrder   int
 }
 
+type UpdateProviderInput struct {
+	Name             string
+	Code             string
+	IsEnabled        bool
+	RotationStrategy string
+}
+
+type UpdateModelInput struct {
+	Name      string
+	Code      string
+	IsEnabled bool
+}
+
+type UpdateAPIKeyInput struct {
+	Alias       string
+	SecretValue string
+	IsEnabled   bool
+	IsAvailable bool
+	SortOrder   int
+}
+
 func NewStore(options Options) (*Store, error) {
 	if options.DB == nil {
 		return nil, fmt.Errorf("admin database is required")
@@ -142,6 +163,54 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 	return provider, nil
 }
 
+func (store *Store) UpdateProvider(ctx context.Context, id string, input UpdateProviderInput) (Provider, error) {
+	id = strings.TrimSpace(id)
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if id == "" || input.Name == "" || input.Code == "" {
+		return Provider{}, fmt.Errorf("provider id, name and code are required")
+	}
+	if input.RotationStrategy != "ROUND_ROBIN" && input.RotationStrategy != "STICKY_FIRST_AVAILABLE" {
+		return Provider{}, fmt.Errorf("invalid rotation strategy")
+	}
+
+	updatedAt := formatTime(store.now())
+	result, err := store.db.ExecContext(ctx, `
+UPDATE providers
+SET name = ?, code = ?, is_enabled = ?, rotation_strategy = ?, updated_at = ?
+WHERE id = ?;
+`, input.Name, input.Code, boolToInt(input.IsEnabled), input.RotationStrategy, updatedAt, id)
+	if err != nil {
+		return Provider{}, fmt.Errorf("update provider: %w", err)
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+		if err != nil {
+			return Provider{}, fmt.Errorf("update provider rows affected: %w", err)
+		}
+		return Provider{}, fmt.Errorf("provider not found")
+	}
+
+	return Provider{
+		ID:               id,
+		Name:             input.Name,
+		Code:             input.Code,
+		IsEnabled:        input.IsEnabled,
+		RotationStrategy: input.RotationStrategy,
+		UpdatedAt:        updatedAt,
+	}, nil
+}
+
+func (store *Store) DeleteProvider(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("provider id is required")
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM providers WHERE id = ?;`, id); err != nil {
+		return fmt.Errorf("delete provider: %w", err)
+	}
+	return nil
+}
+
 func (store *Store) ListModels(ctx context.Context, providerID string, providerCode string) ([]Model, error) {
 	providerID = strings.TrimSpace(providerID)
 	providerCode = strings.TrimSpace(providerCode)
@@ -201,6 +270,43 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 		return Model{}, fmt.Errorf("create model: %w", err)
 	}
 	return model, nil
+}
+
+func (store *Store) UpdateModel(ctx context.Context, id string, input UpdateModelInput) (Model, error) {
+	id = strings.TrimSpace(id)
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.TrimSpace(input.Code)
+	if id == "" || input.Name == "" || input.Code == "" {
+		return Model{}, fmt.Errorf("model id, name and code are required")
+	}
+
+	updatedAt := formatTime(store.now())
+	result, err := store.db.ExecContext(ctx, `
+UPDATE models
+SET name = ?, code = ?, is_enabled = ?, updated_at = ?
+WHERE id = ?;
+`, input.Name, input.Code, boolToInt(input.IsEnabled), updatedAt, id)
+	if err != nil {
+		return Model{}, fmt.Errorf("update model: %w", err)
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+		if err != nil {
+			return Model{}, fmt.Errorf("update model rows affected: %w", err)
+		}
+		return Model{}, fmt.Errorf("model not found")
+	}
+	return Model{ID: id, Name: input.Name, Code: input.Code, IsEnabled: input.IsEnabled}, nil
+}
+
+func (store *Store) DeleteModel(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("model id is required")
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM models WHERE id = ?;`, id); err != nil {
+		return fmt.Errorf("delete model: %w", err)
+	}
+	return nil
 }
 
 func (store *Store) ListAPIKeys(ctx context.Context, providerID string) ([]APIKey, error) {
@@ -271,6 +377,64 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 		return APIKey{}, fmt.Errorf("create api key: %w", err)
 	}
 	return key, nil
+}
+
+func (store *Store) UpdateAPIKey(ctx context.Context, id string, input UpdateAPIKeyInput) (APIKey, error) {
+	id = strings.TrimSpace(id)
+	input.Alias = strings.TrimSpace(input.Alias)
+	input.SecretValue = strings.TrimSpace(input.SecretValue)
+	if id == "" || input.Alias == "" {
+		return APIKey{}, fmt.Errorf("key id and alias are required")
+	}
+
+	updatedAt := formatTime(store.now())
+	var result sql.Result
+	var err error
+	if input.SecretValue == "" {
+		result, err = store.db.ExecContext(ctx, `
+UPDATE api_keys
+SET alias = ?, is_enabled = ?, is_available = ?, sort_order = ?, updated_at = ?
+WHERE id = ?;
+`, input.Alias, boolToInt(input.IsEnabled), boolToInt(input.IsAvailable), input.SortOrder, updatedAt, id)
+	} else {
+		result, err = store.db.ExecContext(ctx, `
+UPDATE api_keys
+SET alias = ?, secret_value = ?, is_enabled = ?, is_available = ?, sort_order = ?, updated_at = ?
+WHERE id = ?;
+`, input.Alias, input.SecretValue, boolToInt(input.IsEnabled), boolToInt(input.IsAvailable), input.SortOrder, updatedAt, id)
+	}
+	if err != nil {
+		return APIKey{}, fmt.Errorf("update api key: %w", err)
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows == 0 {
+		if err != nil {
+			return APIKey{}, fmt.Errorf("update api key rows affected: %w", err)
+		}
+		return APIKey{}, fmt.Errorf("key not found")
+	}
+
+	key := APIKey{
+		ID:          id,
+		Alias:       input.Alias,
+		IsEnabled:   input.IsEnabled,
+		IsAvailable: input.IsAvailable,
+		SortOrder:   input.SortOrder,
+	}
+	if input.SecretValue != "" {
+		key.MaskedValue = MaskSecret(input.SecretValue)
+	}
+	return key, nil
+}
+
+func (store *Store) DeleteAPIKey(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("key id is required")
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM api_keys WHERE id = ?;`, id); err != nil {
+		return fmt.Errorf("delete api key: %w", err)
+	}
+	return nil
 }
 
 func MaskSecret(secret string) string {

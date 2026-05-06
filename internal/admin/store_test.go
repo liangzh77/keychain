@@ -84,6 +84,87 @@ func TestListModelsRequiresProviderFilter(t *testing.T) {
 	}
 }
 
+func TestUpdateProviderModelAndKey(t *testing.T) {
+	store := newTestStore(t)
+
+	provider, err := store.CreateProvider(context.Background(), CreateProviderInput{
+		Name:             "OpenAI",
+		Code:             "openai",
+		IsEnabled:        true,
+		RotationStrategy: "ROUND_ROBIN",
+	})
+	if err != nil {
+		t.Fatalf("CreateProvider() error = %v", err)
+	}
+	model, err := store.CreateModel(context.Background(), CreateModelInput{
+		ProviderID: provider.ID,
+		Name:       "GPT 4.1",
+		Code:       "gpt-4.1",
+		IsEnabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateModel() error = %v", err)
+	}
+	key, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "main",
+		SecretValue: "sk-original-1234",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey() error = %v", err)
+	}
+
+	if _, err := store.UpdateProvider(context.Background(), provider.ID, UpdateProviderInput{
+		Name:             "OpenAI Updated",
+		Code:             "openai-updated",
+		IsEnabled:        false,
+		RotationStrategy: "STICKY_FIRST_AVAILABLE",
+	}); err != nil {
+		t.Fatalf("UpdateProvider() error = %v", err)
+	}
+	if _, err := store.UpdateModel(context.Background(), model.ID, UpdateModelInput{
+		Name:      "GPT 4.1 Mini",
+		Code:      "gpt-4.1-mini",
+		IsEnabled: false,
+	}); err != nil {
+		t.Fatalf("UpdateModel() error = %v", err)
+	}
+	if _, err := store.UpdateAPIKey(context.Background(), key.ID, UpdateAPIKeyInput{
+		Alias:       "main-updated",
+		SecretValue: "",
+		IsEnabled:   false,
+		IsAvailable: false,
+		SortOrder:   7,
+	}); err != nil {
+		t.Fatalf("UpdateAPIKey() error = %v", err)
+	}
+
+	providers, err := store.ListProviders(context.Background())
+	if err != nil {
+		t.Fatalf("ListProviders() error = %v", err)
+	}
+	if providers[0].Name != "OpenAI Updated" || providers[0].IsEnabled {
+		t.Fatalf("updated provider = %#v", providers[0])
+	}
+	models, err := store.ListModels(context.Background(), provider.ID, "")
+	if err != nil {
+		t.Fatalf("ListModels() error = %v", err)
+	}
+	if models[0].Code != "gpt-4.1-mini" || models[0].IsEnabled {
+		t.Fatalf("updated model = %#v", models[0])
+	}
+	keys, err := store.ListAPIKeys(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("ListAPIKeys() error = %v", err)
+	}
+	if keys[0].Alias != "main-updated" || keys[0].IsEnabled || keys[0].IsAvailable || keys[0].SortOrder != 7 {
+		t.Fatalf("updated key = %#v", keys[0])
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
