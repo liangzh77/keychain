@@ -81,11 +81,12 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     form { display: grid; gap: 10px; }
     form[id^="delete-"] { display: none; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr 220px 120px 150px; gap: 10px; align-items: end; }
-    .detail-grid { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 12px; align-items: start; }
-    .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
-    .key-form { grid-template-columns: 1fr 1.3fr 90px 130px 150px; }
-    .model-form { grid-template-columns: 1fr 1fr 130px 150px; }
+    .settings-grid { display: grid; grid-template-columns: minmax(220px, 1fr) 220px 120px 150px; gap: 10px; align-items: end; }
+    .resource-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+    .detail-grid { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .detail-form { display: grid; gap: 10px; align-items: end; }
+    .key-form { grid-template-columns: 1fr 1.3fr 90px 130px; }
+    .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #384252; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
     input[type="checkbox"] { width: auto; }
@@ -99,15 +100,20 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
     .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .mini-link { display: block; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; }
+    .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
+    .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f7f9fc; }
     .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
     .mini-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .detail-form.key-form { grid-template-columns: 1fr 1fr; }
+    .detail-form.key-form .actions { grid-column: 1 / -1; }
+    .detail-form.model-form { grid-template-columns: minmax(0, 1fr) 90px 104px; }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
     .tag.off { background: #f2f3f5; color: #697386; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
+    @media (max-width: 1180px) { .resource-grid { grid-template-columns: 1fr; } }
     @media (max-width: 980px) { .app, .detail-grid { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -123,7 +129,6 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           <summary>添加 Provider</summary>
           <form method="post" action="/admin/providers">
             <label>名称<input name="name" placeholder="OpenAI" required></label>
-            <label>代码<input name="code" placeholder="openai" required></label>
             <label>Key 分发策略
               <select name="rotationStrategy">
                 <option value="ROUND_ROBIN">轮询分发</option>
@@ -143,10 +148,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                   <strong>{{.Provider.Name}}</strong>
                   {{if .Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
                 </div>
-                <div class="provider-row">
-                  <span class="provider-code">{{.Provider.Code}}</span>
-                  <span class="count">{{.ModelCount}} models · {{.KeyCount}} keys</span>
-                </div>
+                <div class="provider-row"><span class="count">{{.ModelCount}} models · {{.KeyCount}} keys</span></div>
               </a>
             {{else}}
               <div class="panel empty">还没有 provider。</div>
@@ -169,14 +171,14 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           <div class="topline">
             <div>
               <h2>{{.Selected.Provider.Name}}</h2>
-              <p class="muted">{{.Selected.Provider.Code}} · {{.Selected.Provider.RotationStrategy}}</p>
+              <p class="muted">{{.Selected.Provider.RotationStrategy}}</p>
             </div>
             {{if .Selected.Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
           </div>
           <form class="settings-grid" method="post" action="/admin/providers/update" data-dirty-form>
             <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+            <input type="hidden" name="code" value="{{.Selected.Provider.Code}}">
             <label>名称<input name="name" value="{{.Selected.Provider.Name}}" required></label>
-            <label>代码<input name="code" value="{{.Selected.Provider.Code}}" required></label>
             <label>Key 分发策略
               <select name="rotationStrategy">
                 <option value="ROUND_ROBIN" {{if eq .Selected.Provider.RotationStrategy "ROUND_ROBIN"}}selected{{end}}>轮询分发</option>
@@ -193,11 +195,59 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
           </form>
         </section>
+        <div class="resource-grid">
+        <section class="panel content">
+          <div class="content">
+            <div class="section-title">
+              <div>
+                <h2>Models</h2>
+                <p class="muted small">列表只显示名称，最多显示 6 行。</p>
+              </div>
+              <details class="add-panel">
+                <summary>添加 Model</summary>
+                <form class="form-grid model-form" method="post" action="/admin/models">
+                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                  <label>名称<input name="name" placeholder="GPT 4.1" required></label>
+                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
+                  <button type="submit">添加 model</button>
+                </form>
+              </details>
+            </div>
+            {{if .Selected.Models}}
+              <div class="detail-grid" style="margin-top:12px">
+                <div class="compact-list scroll-list">
+                  {{range .Selected.Models}}
+                    <a class="mini-link {{if eq $.SelectedModelID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{$.SelectedKeyID}}&modelId={{.ID}}">
+                      {{.Name}}
+                    </a>
+                  {{end}}
+                </div>
+                {{if .SelectedModel}}
+                  <form class="detail-form model-form" method="post" action="/admin/models/update" data-dirty-form>
+                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
+                    <input type="hidden" name="code" value="{{.SelectedModel.Code}}">
+                    <label>名称<input name="name" value="{{.SelectedModel.Name}}" required></label>
+                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedModel.IsEnabled}}checked{{end}}> 启用</label>
+                    <span class="actions">
+                      <button class="secondary" type="submit" data-save disabled>保存</button>
+                      <button class="danger" type="submit" form="delete-model-{{.SelectedModel.ID}}">删除</button>
+                    </span>
+                  </form>
+                  <form id="delete-model-{{.SelectedModel.ID}}" method="post" action="/admin/models/delete">
+                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
+                  </form>
+                {{end}}
+              </div>
+            {{else}}<div class="empty">这个 provider 还没有 model。</div>{{end}}
+          </div>
+        </section>
         <section class="panel content">
           <div class="section-title">
             <div>
               <h2>Keys</h2>
-              <p class="muted small">列表中显示别名和掩码，选中后在右侧修改。</p>
+              <p class="muted small">列表只显示别名，最多显示 6 行。</p>
             </div>
             <details class="add-panel">
               <summary>添加 Key</summary>
@@ -216,11 +266,10 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           </div>
           {{if .Selected.Keys}}
             <div class="detail-grid" style="margin-top:12px">
-              <div class="compact-list">
+              <div class="compact-list scroll-list">
                 {{range .Selected.Keys}}
                   <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
-                    <span class="mini-title"><strong>{{.Alias}}</strong>{{if .IsAvailable}}<span class="tag">可用</span>{{else}}<span class="tag off">不可用</span>{{end}}</span>
-                    <span class="mono">{{.MaskedValue}}</span>
+                    {{.Alias}}
                   </a>
                 {{end}}
               </div>
@@ -248,55 +297,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             </div>
           {{else}}<div class="empty">这个 provider 还没有 key。</div>{{end}}
         </section>
-        <section class="panel content">
-          <div class="content">
-            <div class="section-title">
-              <div>
-                <h2>Models</h2>
-                <p class="muted small">选择 model 后在详情区修改名称、代码和启用状态。</p>
-              </div>
-              <details class="add-panel">
-                <summary>添加 Model</summary>
-                <form class="form-grid model-form" method="post" action="/admin/models">
-                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                  <label>名称<input name="name" placeholder="GPT 4.1" required></label>
-                  <label>代码<input name="code" placeholder="gpt-4.1" required></label>
-                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
-                  <button type="submit">添加 model</button>
-                </form>
-              </details>
-            </div>
-            {{if .Selected.Models}}
-              <div class="detail-grid" style="margin-top:12px">
-                <div class="compact-list">
-                  {{range .Selected.Models}}
-                    <a class="mini-link {{if eq $.SelectedModelID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{$.SelectedKeyID}}&modelId={{.ID}}">
-                      <span class="mini-title"><strong>{{.Name}}</strong>{{if .IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</span>
-                      <span class="mono">{{.Code}}</span>
-                    </a>
-                  {{end}}
-                </div>
-                {{if .SelectedModel}}
-                  <form class="detail-form model-form" method="post" action="/admin/models/update" data-dirty-form>
-                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
-                    <label>名称<input name="name" value="{{.SelectedModel.Name}}" required></label>
-                    <label>代码<input name="code" value="{{.SelectedModel.Code}}" required></label>
-                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedModel.IsEnabled}}checked{{end}}> 启用</label>
-                    <span class="actions">
-                      <button class="secondary" type="submit" data-save disabled>保存</button>
-                      <button class="danger" type="submit" form="delete-model-{{.SelectedModel.ID}}">删除</button>
-                    </span>
-                  </form>
-                  <form id="delete-model-{{.SelectedModel.ID}}" method="post" action="/admin/models/delete">
-                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
-                  </form>
-                {{end}}
-              </div>
-            {{else}}<div class="empty">这个 provider 还没有 model。</div>{{end}}
-          </div>
-        </section>
+        </div>
         </div>
       {{else}}
         <section class="panel empty">先在左侧添加一个 provider。</section>
@@ -439,9 +440,13 @@ func formCreateProviderHandler(store *admin.Store) http.HandlerFunc {
 			redirectAdminError(w, r, "provider 表单格式不正确")
 			return
 		}
+		code := r.FormValue("code")
+		if code == "" {
+			code = r.FormValue("name")
+		}
 		provider, err := store.CreateProvider(r.Context(), admin.CreateProviderInput{
 			Name:             r.FormValue("name"),
-			Code:             r.FormValue("code"),
+			Code:             code,
 			IsEnabled:        r.FormValue("isEnabled") == "1",
 			RotationStrategy: r.FormValue("rotationStrategy"),
 		})
@@ -460,9 +465,13 @@ func formUpdateProviderHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		providerID := r.FormValue("providerId")
+		code := r.FormValue("code")
+		if code == "" {
+			code = r.FormValue("name")
+		}
 		_, err := store.UpdateProvider(r.Context(), providerID, admin.UpdateProviderInput{
 			Name:             r.FormValue("name"),
-			Code:             r.FormValue("code"),
+			Code:             code,
 			IsEnabled:        r.FormValue("isEnabled") == "1",
 			RotationStrategy: r.FormValue("rotationStrategy"),
 		})
@@ -495,10 +504,14 @@ func formCreateModelHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		providerID := r.FormValue("providerId")
+		code := r.FormValue("code")
+		if code == "" {
+			code = r.FormValue("name")
+		}
 		model, err := store.CreateModel(r.Context(), admin.CreateModelInput{
 			ProviderID: providerID,
 			Name:       r.FormValue("name"),
-			Code:       r.FormValue("code"),
+			Code:       code,
 			IsEnabled:  r.FormValue("isEnabled") == "1",
 		})
 		if err != nil {
@@ -516,9 +529,13 @@ func formUpdateModelHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		providerID := r.FormValue("providerId")
+		code := r.FormValue("code")
+		if code == "" {
+			code = r.FormValue("name")
+		}
 		_, err := store.UpdateModel(r.Context(), r.FormValue("modelId"), admin.UpdateModelInput{
 			Name:      r.FormValue("name"),
-			Code:      r.FormValue("code"),
+			Code:      code,
 			IsEnabled: r.FormValue("isEnabled") == "1",
 		})
 		if err != nil {

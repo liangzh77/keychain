@@ -40,6 +40,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .tab.active, .tab:hover { background: #eef4ff; color: var(--accent); }
     .channel-list, .user-list, .row-list { display: grid; gap: 6px; margin-top: 10px; }
     .channel-link, .user-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
+    .user-link { min-height: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .channel-link:hover, .user-link:hover { background: #f1f4f8; }
     .channel-link.active, .user-link.active { background: #eef4ff; border-color: #bed3ff; }
     .meta-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
@@ -61,18 +62,23 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .channel-form { grid-template-columns: 1fr 1fr 160px 110px 170px; }
     .user-form { grid-template-columns: 1fr 1fr 120px 160px; }
-    .split { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .authorization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+    .split { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .mini-link { display: block; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; }
+    .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
+    .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f7f9fc; }
     .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
     .perm-form { display: grid; grid-template-columns: 1fr 140px 160px; gap: 10px; align-items: end; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .detail-form.user-form { grid-template-columns: 1fr 1fr; }
+    .detail-form.user-form .actions { grid-column: 1 / -1; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
     .tag.off { background: #f2f3f5; color: #697386; }
+    @media (max-width: 1180px) { .authorization-grid { grid-template-columns: 1fr; } }
     @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } }
   </style>
 </head>
@@ -157,6 +163,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
             </form>
           </section>
+          <div class="authorization-grid">
           <section class="panel content">
             <div class="section-title">
               <div>
@@ -166,11 +173,10 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             </div>
             {{if .Selected.ChannelPermissions}}
               <div class="split" style="margin-top:12px">
-                <div class="row-list">
+                <div class="row-list scroll-list">
                   {{range .Selected.ChannelPermissions}}
                     <a class="mini-link {{if and (eq $.SelectedPermProviderID .ProviderID) (eq $.SelectedPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{.ProviderID}}&permModelId={{.ModelID}}&userPermProviderId={{$.SelectedUserPermProviderID}}&userPermModelId={{$.SelectedUserPermModelID}}">
-                      <span class="meta-row"><strong>{{.ProviderName}}</strong>{{if .DefaultAllowed}}<span class="tag">允许</span>{{else}}<span class="tag off">关闭</span>{{end}}</span>
-                      <span class="mono">{{.ProviderCode}} / {{.ModelCode}}</span>
+                      {{.ProviderName}} / {{.ModelName}}
                     </a>
                   {{end}}
                 </div>
@@ -205,11 +211,10 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </details>
             </div>
             <div class="split" style="margin-top:12px">
-              <div class="user-list">
+              <div class="user-list scroll-list">
                 {{range .Selected.Users}}
                   <a class="user-link {{if eq $.SelectedUserID .ID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{.ID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}">
-                    <div class="meta-row"><strong>{{.DisplayName}}</strong>{{if .IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</div>
-                    <span class="mono">{{.ExternalUserID}}</span>
+                    {{.DisplayName}}
                   </a>
                 {{else}}
                   <div class="empty">这个渠道还没有用户。</div>
@@ -234,11 +239,10 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                   </form>
                   {{if .UserPermissions}}
                     <div class="split">
-                      <div class="row-list">
+                      <div class="row-list scroll-list">
                         {{range .UserPermissions}}
                           <a class="mini-link {{if and (eq $.SelectedUserPermProviderID .ProviderID) (eq $.SelectedUserPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}&userPermModelId={{.ModelID}}">
-                            <span class="meta-row"><strong>{{.ProviderName}}</strong>{{if .Allowed}}<span class="tag">允许</span>{{else}}<span class="tag off">关闭</span>{{end}}</span>
-                            <span class="mono">{{.ProviderCode}} / {{.ModelCode}}</span>
+                            {{.ProviderName}} / {{.ModelName}}
                           </a>
                         {{end}}
                       </div>
@@ -259,6 +263,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </div>
             </div>
           </section>
+          </div>
         </div>
       {{else}}
         <section class="panel empty">先添加或选择一个渠道。</section>
