@@ -99,6 +99,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
+    details.add-panel.wide-add > summary { min-width: 138px; padding: 0 18px; }
     .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -113,8 +114,9 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .tag.off { background: #f2f3f5; color: #697386; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
+    .half-card { width: calc(50% - 6px); min-width: 520px; }
     @media (max-width: 1180px) { .resource-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 980px) { .app, .detail-grid { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } }
+    @media (max-width: 980px) { .app, .detail-grid { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .half-card { width: 100%; min-width: 0; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -167,7 +169,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
         <div class="stack">
-        <section class="panel content">
+        <section class="panel content half-card">
           <div class="topline">
             <div>
               <h2>{{.Selected.Provider.Name}}</h2>
@@ -203,7 +205,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                 <h2>Models</h2>
                 <p class="muted small">列表只显示名称，最多显示 6 行。</p>
               </div>
-              <details class="add-panel">
+              <details class="add-panel wide-add">
                 <summary>添加 Model</summary>
                 <form class="form-grid model-form" method="post" action="/admin/models">
                   <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
@@ -249,7 +251,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               <h2>Keys</h2>
               <p class="muted small">列表只显示别名，最多显示 6 行。</p>
             </div>
-            <details class="add-panel">
+            <details class="add-panel wide-add">
               <summary>添加 Key</summary>
               <form class="form-grid key-form" method="post" action="/admin/keys">
                 <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">

@@ -59,6 +59,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
+    details.add-panel.wide-add > summary { min-width: 132px; padding: 0 18px; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .channel-form { grid-template-columns: 1fr 1fr 160px 110px 170px; }
     .user-form { grid-template-columns: 1fr 1fr 120px 160px; }
@@ -74,12 +75,19 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .actions { display: flex; justify-content: flex-end; gap: 6px; }
     .detail-form.user-form { grid-template-columns: 1fr 1fr; }
     .detail-form.user-form .actions { grid-column: 1 / -1; }
+    .half-card { width: calc(50% - 6px); min-width: 520px; }
+    .user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .permission-zone { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+    .model-permission-form { display: grid; gap: 10px; }
+    .model-check-list { display: grid; gap: 8px; max-height: 276px; overflow-y: auto; padding-right: 2px; }
+    .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fff; font-size: 13px; font-weight: 700; color: var(--text); }
+    .model-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
     .tag.off { background: #f2f3f5; color: #697386; }
     @media (max-width: 1180px) { .authorization-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } }
+    @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .half-card { width: 100%; min-width: 0; } .user-actions { justify-content: start; flex-wrap: wrap; } }
   </style>
 </head>
 <body>
@@ -135,7 +143,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
         <div class="stack">
-          <section class="panel content">
+          <section class="panel content half-card">
             <div class="topline">
               <div>
                 <h2>{{.Selected.Channel.Name}}</h2>
@@ -199,12 +207,11 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                 <h2>用户与用户授权</h2>
                 <p class="muted small">选择用户后，可维护用户信息和显式授权。</p>
               </div>
-              <details class="add-panel">
+              <details class="add-panel wide-add">
                 <summary>添加用户</summary>
                 <form class="form-grid user-form" method="post" action="/admin/users">
                   <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                  <label>外部用户 ID<input name="externalUserId" placeholder="stu-2026-001" required></label>
-                  <label>显示名<input name="displayName" placeholder="教学演示用户 001" required></label>
+                  <label>用户名称<input name="displayName" placeholder="教学演示用户 001" required></label>
                   <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
                   <button type="submit">添加用户</button>
                 </form>
@@ -225,10 +232,10 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                   <form class="detail-form user-form" method="post" action="/admin/users/update" data-dirty-form>
                     <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
                     <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
-                    <label>外部用户 ID<input name="externalUserId" value="{{.SelectedUser.ExternalUserID}}" required></label>
-                    <label>显示名<input name="displayName" value="{{.SelectedUser.DisplayName}}" required></label>
-                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
-                    <span class="actions">
+                    <input type="hidden" name="externalUserId" value="{{.SelectedUser.ExternalUserID}}">
+                    <label>用户名称<input name="displayName" value="{{.SelectedUser.DisplayName}}" required></label>
+                    <span class="user-actions">
+                      <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
                       <button class="secondary" type="submit" data-save disabled>保存用户</button>
                       <button class="danger" type="submit" form="delete-user-{{.SelectedUser.ID}}">删除</button>
                     </span>
@@ -237,24 +244,30 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                     <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
                     <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
                   </form>
-                  {{if .UserPermissions}}
-                    <div class="split">
+                  {{if .UserPermissionProviders}}
+                    <div class="split permission-zone">
                       <div class="row-list scroll-list">
-                        {{range .UserPermissions}}
-                          <a class="mini-link {{if and (eq $.SelectedUserPermProviderID .ProviderID) (eq $.SelectedUserPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}&userPermModelId={{.ModelID}}">
-                            {{.ProviderName}} / {{.ModelName}}
+                        {{range .UserPermissionProviders}}
+                          <a class="mini-link {{if eq $.SelectedUserPermProviderID .ProviderID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}">
+                            {{.ProviderName}}
                           </a>
                         {{end}}
                       </div>
-                      {{if .SelectedUserPermission}}
-                        <form class="perm-form" method="post" action="/admin/user-permissions" data-dirty-form>
+                      {{if .SelectedUserProviderPermissions}}
+                        <form class="model-permission-form" method="post" action="/admin/user-permissions" data-dirty-form>
                           <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
                           <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
-                          <input type="hidden" name="providerId" value="{{.SelectedUserPermission.ProviderID}}">
-                          <input type="hidden" name="modelId" value="{{.SelectedUserPermission.ModelID}}">
-                          <label>授权对象<input value="{{.SelectedUserPermission.ProviderName}} / {{.SelectedUserPermission.ModelName}}" disabled></label>
-                          <label class="check"><input type="checkbox" name="allowed" value="1" {{if .SelectedUserPermission.Allowed}}checked{{end}}> 显式允许</label>
-                          <button class="secondary" type="submit" data-save disabled>保存授权</button>
+                          <input type="hidden" name="providerId" value="{{.SelectedUserPermProviderID}}">
+                          <div class="model-check-list">
+                            {{range .SelectedUserProviderPermissions}}
+                              <label class="model-check">
+                                <span>{{.ModelName}}</span>
+                                <input type="hidden" name="modelIds" value="{{.ModelID}}">
+                                <input type="checkbox" name="allowedModelIds" value="{{.ModelID}}" {{if .Allowed}}checked{{end}}>
+                              </label>
+                            {{end}}
+                          </div>
+                          <span class="actions"><button class="secondary" type="submit" data-save disabled>保存授权</button></span>
                         </form>
                       {{end}}
                     </div>
@@ -288,25 +301,32 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
 </html>`))
 
 type accessPageData struct {
-	Username                   string
-	Error                      string
-	Channels                   []channelNavItem
-	Selected                   *channelPanel
-	SelectedUser               *admin.User
-	SelectedUserID             string
-	UserPermissions            []admin.UserPermissionRow
-	SelectedChannelPermission  *admin.ChannelPermissionRow
-	SelectedPermProviderID     string
-	SelectedPermModelID        string
-	SelectedUserPermission     *admin.UserPermissionRow
-	SelectedUserPermProviderID string
-	SelectedUserPermModelID    string
+	Username                        string
+	Error                           string
+	Channels                        []channelNavItem
+	Selected                        *channelPanel
+	SelectedUser                    *admin.User
+	SelectedUserID                  string
+	UserPermissions                 []admin.UserPermissionRow
+	UserPermissionProviders         []userPermissionProvider
+	SelectedUserProviderPermissions []admin.UserPermissionRow
+	SelectedChannelPermission       *admin.ChannelPermissionRow
+	SelectedPermProviderID          string
+	SelectedPermModelID             string
+	SelectedUserPermission          *admin.UserPermissionRow
+	SelectedUserPermProviderID      string
+	SelectedUserPermModelID         string
 }
 
 type channelNavItem struct {
 	Channel   admin.Channel
 	IsActive  bool
 	UserCount int
+}
+
+type userPermissionProvider struct {
+	ProviderID   string
+	ProviderName string
 }
 
 type channelPanel struct {
@@ -404,9 +424,13 @@ func loadAccessPageData(r *http.Request, store *admin.Store, data accessPageData
 					if err != nil {
 						return data, err
 					}
-					if data.SelectedUserPermProviderID == "" && len(data.UserPermissions) > 0 {
-						data.SelectedUserPermProviderID = data.UserPermissions[0].ProviderID
-						data.SelectedUserPermModelID = data.UserPermissions[0].ModelID
+					data.UserPermissionProviders = buildUserPermissionProviders(data.UserPermissions)
+					if data.SelectedUserPermProviderID == "" && len(data.UserPermissionProviders) > 0 {
+						data.SelectedUserPermProviderID = data.UserPermissionProviders[0].ProviderID
+					}
+					data.SelectedUserProviderPermissions = filterUserPermissionsByProvider(data.UserPermissions, data.SelectedUserPermProviderID)
+					if data.SelectedUserPermModelID == "" && len(data.SelectedUserProviderPermissions) > 0 {
+						data.SelectedUserPermModelID = data.SelectedUserProviderPermissions[0].ModelID
 					}
 					for _, permission := range data.UserPermissions {
 						if permission.ProviderID == data.SelectedUserPermProviderID && permission.ModelID == data.SelectedUserPermModelID {
@@ -421,6 +445,32 @@ func loadAccessPageData(r *http.Request, store *admin.Store, data accessPageData
 		}
 	}
 	return data, nil
+}
+
+func buildUserPermissionProviders(rows []admin.UserPermissionRow) []userPermissionProvider {
+	seen := make(map[string]bool, len(rows))
+	providers := make([]userPermissionProvider, 0)
+	for _, row := range rows {
+		if seen[row.ProviderID] {
+			continue
+		}
+		seen[row.ProviderID] = true
+		providers = append(providers, userPermissionProvider{
+			ProviderID:   row.ProviderID,
+			ProviderName: row.ProviderName,
+		})
+	}
+	return providers
+}
+
+func filterUserPermissionsByProvider(rows []admin.UserPermissionRow, providerID string) []admin.UserPermissionRow {
+	filtered := make([]admin.UserPermissionRow, 0)
+	for _, row := range rows {
+		if row.ProviderID == providerID {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered
 }
 
 func formSeedDemoAccessHandler(store *admin.Store) http.HandlerFunc {
@@ -494,10 +544,15 @@ func formCreateUserHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		channelID := r.FormValue("channelId")
+		displayName := r.FormValue("displayName")
+		externalUserID := r.FormValue("externalUserId")
+		if externalUserID == "" {
+			externalUserID = displayName
+		}
 		user, err := store.CreateUser(r.Context(), admin.CreateUserInput{
 			ChannelID:      channelID,
-			ExternalUserID: r.FormValue("externalUserId"),
-			DisplayName:    r.FormValue("displayName"),
+			ExternalUserID: externalUserID,
+			DisplayName:    displayName,
 			IsEnabled:      r.FormValue("isEnabled") == "1",
 		})
 		if err != nil {
@@ -516,9 +571,14 @@ func formUpdateUserHandler(store *admin.Store) http.HandlerFunc {
 		}
 		channelID := r.FormValue("channelId")
 		userID := r.FormValue("userId")
+		displayName := r.FormValue("displayName")
+		externalUserID := r.FormValue("externalUserId")
+		if externalUserID == "" {
+			externalUserID = displayName
+		}
 		if err := store.UpdateUser(r.Context(), userID, admin.UpdateUserInput{
-			ExternalUserID: r.FormValue("externalUserId"),
-			DisplayName:    r.FormValue("displayName"),
+			ExternalUserID: externalUserID,
+			DisplayName:    displayName,
 			IsEnabled:      r.FormValue("isEnabled") == "1",
 		}); err != nil {
 			redirectAccessError(w, r, "保存用户失败："+err.Error())
@@ -566,7 +626,24 @@ func formSetUserPermissionHandler(store *admin.Store) http.HandlerFunc {
 		}
 		channelID := r.FormValue("channelId")
 		userID := r.FormValue("userId")
-		if err := store.SetUserPermission(r.Context(), userID, r.FormValue("providerId"), r.FormValue("modelId"), r.FormValue("allowed") == "1"); err != nil {
+		providerID := r.FormValue("providerId")
+		modelIDs := r.Form["modelIds"]
+		if len(modelIDs) > 0 {
+			allowedModelIDs := make(map[string]bool, len(r.Form["allowedModelIds"]))
+			for _, modelID := range r.Form["allowedModelIds"] {
+				allowedModelIDs[modelID] = true
+			}
+			for _, modelID := range modelIDs {
+				if err := store.SetUserPermission(r.Context(), userID, providerID, modelID, allowedModelIDs[modelID]); err != nil {
+					redirectAccessError(w, r, "保存用户授权失败："+err.Error())
+					return
+				}
+			}
+			url := "/admin/access?channelId=" + template.URLQueryEscaper(channelID) + "&userId=" + template.URLQueryEscaper(userID) + "&userPermProviderId=" + template.URLQueryEscaper(providerID)
+			http.Redirect(w, r, url, http.StatusFound)
+			return
+		}
+		if err := store.SetUserPermission(r.Context(), userID, providerID, r.FormValue("modelId"), r.FormValue("allowed") == "1"); err != nil {
 			redirectAccessError(w, r, "保存用户授权失败："+err.Error())
 			return
 		}
