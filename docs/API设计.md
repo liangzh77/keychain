@@ -1,5 +1,8 @@
 # API 设计
 
+> 说明：本文是项目内部 API 总设计，包含后台管理 API 和调用系统 Runtime API。
+> 给外部项目对接时，请优先发送 `docs/外部调用接入指南.md`，不要直接发送本文档。
+
 ## 通用约定
 
 所有 API 返回 JSON。
@@ -434,11 +437,24 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ```json
 {
   "channelId": "channel_001",
+  "externalUserId": "student-001",
   "name": "Student 001"
 }
 ```
 
-兼容说明：如果调用系统仍使用旧字段，服务端可继续接受 `channelCode`、`externalUserId`、`displayName`；其中 `displayName` 应映射为 `name`。
+响应：
+
+```json
+{
+  "id": "user_001",
+  "channelId": "channel_001",
+  "externalUserId": "student-001",
+  "name": "Student 001",
+  "isEnabled": true
+}
+```
+
+兼容说明：如果调用系统仍使用旧字段，服务端可继续接受 `channelCode`、`displayName`；其中 `displayName` 应映射为 `name`。
 
 ### GET /api/runtime/users/:id/permissions
 

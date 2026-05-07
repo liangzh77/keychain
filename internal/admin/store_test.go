@@ -292,6 +292,113 @@ func TestAccessDataAndPermissions(t *testing.T) {
 	}
 }
 
+func TestRuntimeDispatchAndFailureReport(t *testing.T) {
+	store := newTestStore(t)
+
+	provider, err := store.CreateProvider(context.Background(), CreateProviderInput{
+		Name:             "OpenAI",
+		Code:             "openai",
+		IsEnabled:        true,
+		RotationStrategy: "ROUND_ROBIN",
+	})
+	if err != nil {
+		t.Fatalf("CreateProvider() error = %v", err)
+	}
+	model, err := store.CreateModel(context.Background(), CreateModelInput{
+		ProviderID: provider.ID,
+		Name:       "GPT 4.1",
+		Code:       "gpt-4.1",
+		IsEnabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateModel() error = %v", err)
+	}
+	first, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "first",
+		SecretValue: "sk-first",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(first) error = %v", err)
+	}
+	second, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "second",
+		SecretValue: "sk-second",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   2,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(second) error = %v", err)
+	}
+	channel, err := store.CreateChannel(context.Background(), CreateChannelInput{
+		Name:                  "Main",
+		Code:                  "main",
+		DefaultPermissionMode: "DENY",
+		IsEnabled:             true,
+	})
+	if err != nil {
+		t.Fatalf("CreateChannel() error = %v", err)
+	}
+	user, err := store.UpsertRuntimeUser(context.Background(), UpsertRuntimeUserInput{
+		ChannelID: channel.ID,
+		Name:      "Student 001",
+		IsEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("UpsertRuntimeUser() error = %v", err)
+	}
+	if err := store.SetChannelPermissionDefault(context.Background(), channel.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+
+	dispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
+		ChannelID:  channel.ID,
+		UserID:     user.ID,
+		ProviderID: provider.ID,
+		ModelID:    model.ID,
+	})
+	if err != nil {
+		t.Fatalf("DispatchRuntimeKey() error = %v", err)
+	}
+	if dispatch.KeyID != first.ID || dispatch.Key != "sk-first" {
+		t.Fatalf("first dispatch = %#v, want first key", dispatch)
+	}
+	secondDispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
+		ChannelID:  channel.ID,
+		UserID:     user.ID,
+		ProviderID: provider.ID,
+		ModelID:    model.ID,
+	})
+	if err != nil {
+		t.Fatalf("DispatchRuntimeKey() second error = %v", err)
+	}
+	if secondDispatch.KeyID != second.ID {
+		t.Fatalf("second dispatch key id = %s, want %s", secondDispatch.KeyID, second.ID)
+	}
+
+	report, err := store.ReportRuntimeKeyFailure(context.Background(), dispatch.DispatchLogID, "rate_limit", "provider returned 429")
+	if err != nil {
+		t.Fatalf("ReportRuntimeKeyFailure() error = %v", err)
+	}
+	if report.KeyID != first.ID || report.IsAvailable {
+		t.Fatalf("failure report = %#v, want first unavailable", report)
+	}
+	keys, err := store.ListAPIKeys(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("ListAPIKeys() error = %v", err)
+	}
+	for _, key := range keys {
+		if key.ID == first.ID && key.IsAvailable {
+			t.Fatalf("failed key is still available: %#v", key)
+		}
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 

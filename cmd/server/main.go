@@ -59,7 +59,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:         cfg.HTTPAddr,
-		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping, Auth: authService, AdminStore: adminStore}),
+		Handler:      server.NewRouter(server.Options{Now: time.Now, HealthCheck: database.Ping, Auth: authService, AdminStore: adminStore, RuntimeToken: cfg.RuntimeAPIToken}),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

@@ -10,10 +10,11 @@ import (
 )
 
 type Options struct {
-	Now         func() time.Time
-	HealthCheck func(context.Context) error
-	Auth        *auth.Service
-	AdminStore  *admin.Store
+	Now          func() time.Time
+	HealthCheck  func(context.Context) error
+	Auth         *auth.Service
+	AdminStore   *admin.Store
+	RuntimeToken string
 }
 
 func NewRouter(options Options) http.Handler {
@@ -24,6 +25,9 @@ func NewRouter(options Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler(options.HealthCheck))
 	mux.HandleFunc("GET /api/health", healthHandlerWithCheck(options.Now, options.HealthCheck))
+	if options.AdminStore != nil {
+		registerRuntimeAPIRoutes(mux, options.AdminStore, options.RuntimeToken)
+	}
 	if options.Auth != nil {
 		registerAuthRoutes(mux, options.Auth)
 		if options.AdminStore != nil {
