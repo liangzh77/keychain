@@ -4,7 +4,7 @@ set -euo pipefail
 APP_NAME="keychain"
 APP_BINARY="keychain"
 BUILD_TARGET="./cmd/server"
-APP_PORT="8080"
+APP_PORT="8081"
 SERVICE_NAME="keychain"
 
 GIT_DIR="/srv/git/${APP_NAME}.git"
