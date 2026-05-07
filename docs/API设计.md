@@ -36,6 +36,18 @@ page=1&pageSize=20
 
 ## 健康检查 API
 
+### GET /healthz
+
+公开部署探活接口。不要求管理员登录。部署 hook、systemd 或反向代理应优先使用这个接口。
+
+响应：
+
+```json
+{
+  "ok": true
+}
+```
+
 ### GET /api/health
 
 健康检查接口。不要求管理员登录，用于部署平台、反向代理或监控系统探活。
@@ -93,6 +105,15 @@ page=1&pageSize=20
 
 后台管理 API 必须要求管理员登录。
 
+### 字段展示约定
+
+后台管理界面以“名称”为主要识别信息，不要求管理员填写 `code`。
+
+- `provider.code`、`model.code`、`channel.code` 是内部兼容字段，可由服务端根据名称自动生成或保留旧值。
+- 后台创建和更新 provider、model、channel 时，客户端只需要提交 `name`。
+- 后台用户只展示一个名称字段，API 统一使用 `name`；兼容旧数据时，服务端可以把 `externalUserId` 视为内部字段，默认等于 `name`。
+- Runtime API 优先使用稳定的 `id` 字段；如需兼容旧调用系统，可继续接受 `*Code` 字段。
+
 ### Providers
 
 ```http
@@ -109,13 +130,24 @@ Provider 字段：
 {
   "id": "provider_001",
   "name": "OpenAI",
-  "code": "openai",
   "isEnabled": true,
   "rotationStrategy": "ROUND_ROBIN",
   "createdAt": "2026-05-06T00:00:00Z",
   "updatedAt": "2026-05-06T00:00:00Z"
 }
 ```
+
+创建或更新 provider：
+
+```json
+{
+  "name": "OpenAI",
+  "isEnabled": true,
+  "rotationStrategy": "ROUND_ROBIN"
+}
+```
+
+兼容说明：响应或旧接口中可能仍包含内部字段 `code`，但前端不展示，也不应要求管理员填写。
 
 `rotationStrategy` 可选：
 
@@ -132,11 +164,10 @@ PATCH  /api/models/:id
 DELETE /api/models/:id
 ```
 
-Models 列表必须按 provider 过滤。调用方必须传 `providerId` 或 `providerCode`，接口只返回一个 provider 下的 models。
+Models 列表必须按 provider 过滤。调用方必须传 `providerId`，接口只返回一个 provider 下的 models。为兼容旧调用方，可以继续支持 `providerCode`。
 
 ```http
 GET /api/models?providerId=provider_001
-GET /api/models?providerCode=openai
 ```
 
 Model 字段：
@@ -146,10 +177,21 @@ Model 字段：
   "id": "model_001",
   "providerId": "provider_001",
   "name": "gpt-4.1",
-  "code": "gpt-4.1",
   "isEnabled": true
 }
 ```
+
+创建或更新 model：
+
+```json
+{
+  "providerId": "provider_001",
+  "name": "gpt-4.1",
+  "isEnabled": true
+}
+```
+
+兼容说明：响应或旧接口中可能仍包含内部字段 `code`，但前端不展示，也不应要求管理员填写。
 
 ### Keys
 
@@ -206,11 +248,22 @@ Channel 字段：
 {
   "id": "channel_001",
   "name": "School A",
-  "code": "school_a",
   "defaultPermissionMode": "DENY",
   "isEnabled": true
 }
 ```
+
+创建或更新 channel：
+
+```json
+{
+  "name": "School A",
+  "defaultPermissionMode": "DENY",
+  "isEnabled": true
+}
+```
+
+兼容说明：`code` 是内部兼容字段，后台不展示。创建时如果未提供 `code`，服务端自动生成；更新时服务端保留旧值。
 
 `defaultPermissionMode` 可选：
 
@@ -239,11 +292,22 @@ User 字段：
 {
   "id": "user_001",
   "channelId": "channel_001",
-  "externalUserId": "student-001",
-  "displayName": "Student 001",
+  "name": "Student 001",
   "isEnabled": true
 }
 ```
+
+创建或更新 user：
+
+```json
+{
+  "channelId": "channel_001",
+  "name": "Student 001",
+  "isEnabled": true
+}
+```
+
+兼容说明：旧数据结构中的 `externalUserId` 和 `displayName` 不再作为后台界面的两个独立字段展示。服务端可把 `name` 同步到 `displayName`，并在 `externalUserId` 为空时默认使用 `name`。
 
 ### Permissions
 
@@ -369,11 +433,12 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 ```json
 {
-  "channelCode": "school_a",
-  "externalUserId": "student-001",
-  "displayName": "Student 001"
+  "channelId": "channel_001",
+  "name": "Student 001"
 }
 ```
+
+兼容说明：如果调用系统仍使用旧字段，服务端可继续接受 `channelCode`、`externalUserId`、`displayName`；其中 `displayName` 应映射为 `name`。
 
 ### GET /api/runtime/users/:id/permissions
 
@@ -387,9 +452,9 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
   "permissions": [
     {
       "providerId": "provider_001",
-      "providerCode": "openai",
+      "providerName": "OpenAI",
       "modelId": "model_001",
-      "modelCode": "gpt-4.1",
+      "modelName": "gpt-4.1",
       "allowed": true
     }
   ]
@@ -402,10 +467,10 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 ### GET /api/runtime/models
 
-查询可用 models 列表。必须传 `providerId` 或 `providerCode`，接口只返回一个 provider 下的 models。
+查询可用 models 列表。必须传 `providerId`，接口只返回一个 provider 下的 models。为兼容旧调用系统，可以继续接受 `providerCode`。
 
 ```http
-GET /api/runtime/models?providerCode=openai
+GET /api/runtime/models?providerId=provider_001
 ```
 
 ### POST /api/runtime/dispatch-key
@@ -416,10 +481,10 @@ GET /api/runtime/models?providerCode=openai
 
 ```json
 {
-  "channelCode": "school_a",
-  "externalUserId": "student-001",
-  "providerCode": "openai",
-  "modelCode": "gpt-4.1"
+  "channelId": "channel_001",
+  "userId": "user_001",
+  "providerId": "provider_001",
+  "modelId": "model_001"
 }
 ```
 
@@ -428,13 +493,15 @@ GET /api/runtime/models?providerCode=openai
 ```json
 {
   "dispatchLogId": "dispatch_001",
-  "providerCode": "openai",
-  "modelCode": "gpt-4.1",
+  "providerName": "OpenAI",
+  "modelName": "gpt-4.1",
   "keyId": "key_001",
   "keyAlias": "openai-main-01",
   "key": "sk-real-key"
 }
 ```
+
+兼容说明：旧调用系统如仍提交 `channelCode`、`externalUserId`、`providerCode`、`modelCode`，服务端可以保留兼容入口；新实现优先使用 `id`。
 
 ### POST /api/runtime/key-failures
 

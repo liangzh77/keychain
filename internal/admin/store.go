@@ -134,8 +134,11 @@ ORDER BY created_at DESC, name ASC;
 func (store *Store) CreateProvider(ctx context.Context, input CreateProviderInput) (Provider, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
-	if input.Name == "" || input.Code == "" {
-		return Provider{}, fmt.Errorf("provider name and code are required")
+	if input.Code == "" {
+		input.Code = input.Name
+	}
+	if input.Name == "" {
+		return Provider{}, fmt.Errorf("provider name is required")
 	}
 	if input.RotationStrategy == "" {
 		input.RotationStrategy = "ROUND_ROBIN"
@@ -167,8 +170,11 @@ func (store *Store) UpdateProvider(ctx context.Context, id string, input UpdateP
 	id = strings.TrimSpace(id)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
-	if id == "" || input.Name == "" || input.Code == "" {
-		return Provider{}, fmt.Errorf("provider id, name and code are required")
+	if input.Code == "" {
+		input.Code = input.Name
+	}
+	if id == "" || input.Name == "" {
+		return Provider{}, fmt.Errorf("provider id and name are required")
 	}
 	if input.RotationStrategy != "ROUND_ROBIN" && input.RotationStrategy != "STICKY_FIRST_AVAILABLE" {
 		return Provider{}, fmt.Errorf("invalid rotation strategy")
@@ -251,8 +257,11 @@ func (store *Store) CreateModel(ctx context.Context, input CreateModelInput) (Mo
 	input.ProviderID = strings.TrimSpace(input.ProviderID)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
-	if input.ProviderID == "" || input.Name == "" || input.Code == "" {
-		return Model{}, fmt.Errorf("provider id, model name and code are required")
+	if input.Code == "" {
+		input.Code = input.Name
+	}
+	if input.ProviderID == "" || input.Name == "" {
+		return Model{}, fmt.Errorf("provider id and model name are required")
 	}
 
 	now := formatTime(store.now())
@@ -276,8 +285,11 @@ func (store *Store) UpdateModel(ctx context.Context, id string, input UpdateMode
 	id = strings.TrimSpace(id)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
-	if id == "" || input.Name == "" || input.Code == "" {
-		return Model{}, fmt.Errorf("model id, name and code are required")
+	if input.Code == "" {
+		input.Code = input.Name
+	}
+	if id == "" || input.Name == "" {
+		return Model{}, fmt.Errorf("model id and name are required")
 	}
 
 	updatedAt := formatTime(store.now())

@@ -96,11 +96,14 @@ ORDER BY created_at DESC, name ASC;
 func (store *Store) CreateChannel(ctx context.Context, input CreateChannelInput) (Channel, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
+	if input.Code == "" {
+		input.Code = input.Name
+	}
 	if input.DefaultPermissionMode == "" {
 		input.DefaultPermissionMode = "DENY"
 	}
-	if input.Name == "" || input.Code == "" {
-		return Channel{}, fmt.Errorf("channel name and code are required")
+	if input.Name == "" {
+		return Channel{}, fmt.Errorf("channel name is required")
 	}
 	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
 		return Channel{}, fmt.Errorf("invalid channel default permission mode")
@@ -126,8 +129,11 @@ func (store *Store) UpdateChannel(ctx context.Context, id string, input UpdateCh
 	id = strings.TrimSpace(id)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Code = strings.TrimSpace(input.Code)
-	if id == "" || input.Name == "" || input.Code == "" {
-		return fmt.Errorf("channel id, name and code are required")
+	if input.Code == "" {
+		input.Code = input.Name
+	}
+	if id == "" || input.Name == "" {
+		return fmt.Errorf("channel id and name are required")
 	}
 	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
 		return fmt.Errorf("invalid channel default permission mode")
@@ -188,8 +194,14 @@ func (store *Store) CreateUser(ctx context.Context, input CreateUserInput) (User
 	input.ChannelID = strings.TrimSpace(input.ChannelID)
 	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	if input.ChannelID == "" || input.ExternalUserID == "" || input.DisplayName == "" {
-		return User{}, fmt.Errorf("channel id, external user id and display name are required")
+	if input.ExternalUserID == "" {
+		input.ExternalUserID = input.DisplayName
+	}
+	if input.DisplayName == "" {
+		input.DisplayName = input.ExternalUserID
+	}
+	if input.ChannelID == "" || input.DisplayName == "" {
+		return User{}, fmt.Errorf("channel id and user name are required")
 	}
 	now := formatTime(store.now())
 	user := User{
@@ -212,8 +224,14 @@ func (store *Store) UpdateUser(ctx context.Context, id string, input UpdateUserI
 	id = strings.TrimSpace(id)
 	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	if id == "" || input.ExternalUserID == "" || input.DisplayName == "" {
-		return fmt.Errorf("user id, external user id and display name are required")
+	if input.ExternalUserID == "" {
+		input.ExternalUserID = input.DisplayName
+	}
+	if input.DisplayName == "" {
+		input.DisplayName = input.ExternalUserID
+	}
+	if id == "" || input.DisplayName == "" {
+		return fmt.Errorf("user id and user name are required")
 	}
 	if _, err := store.db.ExecContext(ctx, `
 UPDATE users
