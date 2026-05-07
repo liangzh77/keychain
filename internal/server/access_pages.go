@@ -3,6 +3,9 @@ package server
 import (
 	"html/template"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/liangzh77/keychain/internal/admin"
 	"github.com/liangzh77/keychain/internal/auth"
@@ -61,7 +64,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
     details.add-panel.wide-add > summary { min-width: 132px; padding: 0 18px; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .channel-form { grid-template-columns: 1fr 1fr 160px 110px 170px; }
+    .channel-form { grid-template-columns: minmax(0, 1fr) 160px 110px 170px; }
     .user-form { grid-template-columns: 1fr 1fr 120px 160px; }
     .authorization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
     .split { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 12px; align-items: start; }
@@ -83,6 +86,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
     .permission-zone { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
     .model-permission-form { display: grid; gap: 10px; }
+    .permission-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .bulk-actions { display: flex; align-items: center; gap: 6px; }
     .model-check-list { display: grid; gap: 8px; max-height: 276px; overflow-y: auto; padding-right: 2px; }
     .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fff; font-size: 13px; font-weight: 700; color: var(--text); }
     .model-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -111,7 +116,6 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
           <summary>添加渠道</summary>
           <form method="post" action="/admin/channels">
             <label>名称<input name="name" placeholder="本校默认渠道" required></label>
-            <label>代码<input name="code" placeholder="school-default" required></label>
             <label>默认权限
               <select name="defaultPermissionMode">
                 <option value="DENY">默认关闭</option>
@@ -128,7 +132,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             {{range .Channels}}
               <a class="channel-link {{if .IsActive}}active{{end}}" href="/admin/access?channelId={{.Channel.ID}}">
                 <div class="meta-row"><strong>{{.Channel.Name}}</strong>{{if .Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</div>
-                <div class="meta-row"><span class="mono">{{.Channel.Code}}</span><span class="muted small">{{.UserCount}} users · {{.Channel.DefaultPermissionMode}}</span></div>
+                <div class="meta-row"><span class="muted small">{{.UserCount}} users · {{.Channel.DefaultPermissionMode}}</span></div>
               </a>
             {{else}}
               <div class="panel empty">还没有渠道。</div>
@@ -151,14 +155,14 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <div class="topline">
               <div>
                 <h2>{{.Selected.Channel.Name}}</h2>
-                <p class="muted">{{.Selected.Channel.Code}} · {{.Selected.Channel.DefaultPermissionMode}}</p>
+                <p class="muted">{{.Selected.Channel.DefaultPermissionMode}}</p>
               </div>
               {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
             </div>
             <form class="form-grid channel-form" method="post" action="/admin/channels/update" data-dirty-form>
               <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+              <input type="hidden" name="code" value="{{.Selected.Channel.Code}}">
               <label>名称<input name="name" value="{{.Selected.Channel.Name}}" required></label>
-              <label>代码<input name="code" value="{{.Selected.Channel.Code}}" required></label>
               <label>默认权限
                 <select name="defaultPermissionMode">
                   <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
@@ -179,7 +183,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
           <section class="panel content">
             <div class="section-title">
               <div>
-                <h2>渠道 Providers 授权</h2>
+                <h2>Providers 授权</h2>
                 <p class="muted small">点击一个 provider/model，右侧修改该渠道的默认允许状态。</p>
               </div>
             </div>
@@ -214,7 +218,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
           <section class="panel content">
             <div class="section-title">
               <div>
-                <h2>用户与用户授权</h2>
+                <h2>用户授权</h2>
                 <p class="muted small">选择用户后，可维护用户信息和显式授权。</p>
               </div>
               <details class="add-panel wide-add">
@@ -286,7 +290,13 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                                 </label>
                               {{end}}
                             </div>
-                            <span class="actions"><button class="secondary" type="submit" data-save disabled>保存授权</button></span>
+                            <span class="permission-actions">
+                              <span class="bulk-actions">
+                                <button class="ghost" type="button" data-check-all>全选</button>
+                                <button class="ghost" type="button" data-check-none>不选</button>
+                              </span>
+                              <button class="secondary" type="submit" data-save disabled>保存授权</button>
+                            </span>
                           </form>
                         </div>
                       {{end}}
@@ -315,6 +325,17 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       form.addEventListener('input', sync);
       form.addEventListener('change', sync);
       sync();
+    });
+    document.querySelectorAll('[data-check-all], [data-check-none]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const form = button.closest('form');
+        if (!form) return;
+        const checked = button.hasAttribute('data-check-all');
+        form.querySelectorAll('input[name="allowedModelIds"]').forEach((checkbox) => {
+          checkbox.checked = checked;
+        });
+        form.dispatchEvent(new Event('change', { bubbles: true }));
+      });
     });
   </script>
 </body>
@@ -509,9 +530,13 @@ func formCreateChannelHandler(store *admin.Store) http.HandlerFunc {
 			redirectAccessError(w, r, "渠道表单格式不正确")
 			return
 		}
+		code := strings.TrimSpace(r.FormValue("code"))
+		if code == "" {
+			code = "channel-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+		}
 		channel, err := store.CreateChannel(r.Context(), admin.CreateChannelInput{
 			Name:                  r.FormValue("name"),
-			Code:                  r.FormValue("code"),
+			Code:                  code,
 			DefaultPermissionMode: r.FormValue("defaultPermissionMode"),
 			IsEnabled:             r.FormValue("isEnabled") == "1",
 		})
@@ -530,9 +555,13 @@ func formUpdateChannelHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		channelID := r.FormValue("channelId")
+		code := strings.TrimSpace(r.FormValue("code"))
+		if code == "" {
+			code = "channel-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+		}
 		if err := store.UpdateChannel(r.Context(), channelID, admin.UpdateChannelInput{
 			Name:                  r.FormValue("name"),
-			Code:                  r.FormValue("code"),
+			Code:                  code,
 			DefaultPermissionMode: r.FormValue("defaultPermissionMode"),
 			IsEnabled:             r.FormValue("isEnabled") == "1",
 		}); err != nil {
