@@ -223,17 +223,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <div class="section-title">
               <div>
                 <h2>用户授权</h2>
-                <p class="muted small">选择用户后，可维护用户信息和显式授权。</p>
+                <p class="muted small">用户由外部应用通过 API 创建；这里仅维护已有用户和授权。</p>
               </div>
-              <details class="add-panel wide-add">
-                <summary>添加用户</summary>
-                <form class="form-grid user-form" method="post" action="/admin/users">
-                  <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                  <label>用户名称<input name="displayName" placeholder="教学演示用户 001" required></label>
-                  <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
-                  <button type="submit">添加用户</button>
-                </form>
-              </details>
             </div>
             <div class="split" style="margin-top:12px">
               <div class="pane">
@@ -386,7 +377,6 @@ func registerAccessRoutes(mux *http.ServeMux, authService *auth.Service, store *
 	mux.HandleFunc("POST /admin/channels", formCreateChannelHandler(store))
 	mux.HandleFunc("POST /admin/channels/update", formUpdateChannelHandler(store))
 	mux.HandleFunc("POST /admin/channels/delete", formDeleteChannelHandler(store))
-	mux.HandleFunc("POST /admin/users", formCreateUserHandler(store))
 	mux.HandleFunc("POST /admin/users/update", formUpdateUserHandler(store))
 	mux.HandleFunc("POST /admin/users/delete", formDeleteUserHandler(store))
 	mux.HandleFunc("POST /admin/channel-permissions", formSetChannelPermissionHandler(store))
@@ -587,32 +577,6 @@ func formDeleteChannelHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		http.Redirect(w, r, "/admin/access", http.StatusFound)
-	}
-}
-
-func formCreateUserHandler(store *admin.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			redirectAccessError(w, r, "用户表单格式不正确")
-			return
-		}
-		channelID := r.FormValue("channelId")
-		displayName := r.FormValue("displayName")
-		externalUserID := r.FormValue("externalUserId")
-		if externalUserID == "" {
-			externalUserID = displayName
-		}
-		user, err := store.CreateUser(r.Context(), admin.CreateUserInput{
-			ChannelID:      channelID,
-			ExternalUserID: externalUserID,
-			DisplayName:    displayName,
-			IsEnabled:      r.FormValue("isEnabled") == "1",
-		})
-		if err != nil {
-			redirectAccessError(w, r, "添加用户失败："+err.Error())
-			return
-		}
-		redirectAccessChannel(w, r, channelID, user.ID)
 	}
 }
 
