@@ -71,7 +71,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .provider-list, .compact-list { display: grid; gap: 6px; margin-top: 10px; }
     .provider-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
     .provider-link:hover { background: #f1f4f8; }
-    .provider-link.active { background: #eef4ff; border-color: #bed3ff; }
+    .provider-link.active { background: #eef4ff; border-color: #86a8f7; box-shadow: inset 3px 0 0 var(--accent); }
     .provider-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .provider-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
@@ -89,8 +89,8 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #384252; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
-    input[type="checkbox"] { width: auto; }
-    .check { display: flex; align-items: center; gap: 8px; height: 38px; }
+    input[type="checkbox"] { width: 17px; height: 17px; }
+    .check { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #cbd3df; border-radius: 6px; background: #f8fafc; color: #303846; font-size: 13px; font-weight: 800; white-space: nowrap; }
     button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; white-space: nowrap; }
     button:disabled { cursor: not-allowed; opacity: .48; }
     button.secondary { background: #46515f; }
@@ -104,8 +104,12 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f7f9fc; }
-    .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
+    .mini-link.active { border-color: #86a8f7; background: #eef4ff; box-shadow: inset 3px 0 0 var(--accent); }
     .mini-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .pane { display: grid; gap: 8px; min-width: 0; }
+    .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #526071; font-size: 12px; font-weight: 800; letter-spacing: 0; }
+    .pane-title::before { content: ""; width: 4px; height: 16px; border-radius: 999px; background: var(--accent); }
+    .pane-title span { margin-right: auto; margin-left: 8px; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; }
     .detail-form.key-form { grid-template-columns: 1fr 1fr; }
     .detail-form.key-form .actions { grid-column: 1 / -1; }
@@ -121,7 +125,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
 </head>
 <body>
   <header>
-    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a></div>
+    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab active" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a></div>
     <form method="post" action="/logout"><button class="ghost" type="submit">退出</button></form>
   </header>
   <div class="app">
@@ -217,25 +221,31 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             </div>
             {{if .Selected.Models}}
               <div class="detail-grid" style="margin-top:12px">
-                <div class="compact-list scroll-list">
-                  {{range .Selected.Models}}
-                    <a class="mini-link {{if eq $.SelectedModelID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{$.SelectedKeyID}}&modelId={{.ID}}">
-                      {{.Name}}
-                    </a>
-                  {{end}}
+                <div class="pane">
+                  <div class="pane-title"><span>Model 列表</span></div>
+                  <div class="compact-list scroll-list">
+                    {{range .Selected.Models}}
+                      <a class="mini-link {{if eq $.SelectedModelID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{$.SelectedKeyID}}&modelId={{.ID}}">
+                        {{.Name}}
+                      </a>
+                    {{end}}
+                  </div>
                 </div>
                 {{if .SelectedModel}}
-                  <form class="detail-form model-form" method="post" action="/admin/models/update" data-dirty-form>
-                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                    <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
-                    <input type="hidden" name="code" value="{{.SelectedModel.Code}}">
-                    <label>名称<input name="name" value="{{.SelectedModel.Name}}" required></label>
-                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedModel.IsEnabled}}checked{{end}}> 启用</label>
-                    <span class="actions">
-                      <button class="secondary" type="submit" data-save disabled>保存</button>
-                      <button class="danger" type="submit" form="delete-model-{{.SelectedModel.ID}}">删除</button>
-                    </span>
-                  </form>
+                  <div class="pane">
+                    <div class="pane-title"><span>Model 详情</span></div>
+                    <form class="detail-form model-form" method="post" action="/admin/models/update" data-dirty-form>
+                      <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                      <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
+                      <input type="hidden" name="code" value="{{.SelectedModel.Code}}">
+                      <label>名称<input name="name" value="{{.SelectedModel.Name}}" required></label>
+                      <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedModel.IsEnabled}}checked{{end}}> 启用</label>
+                      <span class="actions">
+                        <button class="secondary" type="submit" data-save disabled>保存</button>
+                        <button class="danger" type="submit" form="delete-model-{{.SelectedModel.ID}}">删除</button>
+                      </span>
+                    </form>
+                  </div>
                   <form id="delete-model-{{.SelectedModel.ID}}" method="post" action="/admin/models/delete">
                     <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                     <input type="hidden" name="modelId" value="{{.SelectedModel.ID}}">
@@ -268,29 +278,35 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           </div>
           {{if .Selected.Keys}}
             <div class="detail-grid" style="margin-top:12px">
-              <div class="compact-list scroll-list">
-                {{range .Selected.Keys}}
-                  <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
-                    {{.Alias}}
-                  </a>
-                {{end}}
+              <div class="pane">
+                <div class="pane-title"><span>Key 列表</span></div>
+                <div class="compact-list scroll-list">
+                  {{range .Selected.Keys}}
+                    <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
+                      {{.Alias}}
+                    </a>
+                  {{end}}
+                </div>
               </div>
               {{if .SelectedKey}}
-                <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
-                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
-                  <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
-                  <label>别名<input name="alias" value="{{.SelectedKey.Alias}}" required></label>
-                  <label>替换明文<input name="secretValue" placeholder="{{.SelectedKey.MaskedValue}}，留空不替换"></label>
-                  <label>排序<input name="sortOrder" type="number" value="{{.SelectedKey.SortOrder}}"></label>
-                  <span>
-                    <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedKey.IsEnabled}}checked{{end}}> 启用</label>
-                    <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
-                  </span>
-                  <span class="actions">
-                    <button class="secondary" type="submit" data-save disabled>保存</button>
-                    <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
-                  </span>
-                </form>
+                <div class="pane">
+                  <div class="pane-title"><span>Key 详情</span></div>
+                  <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
+                    <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                    <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
+                    <label>别名<input name="alias" value="{{.SelectedKey.Alias}}" required></label>
+                    <label>替换明文<input name="secretValue" placeholder="{{.SelectedKey.MaskedValue}}，留空不替换"></label>
+                    <label>排序<input name="sortOrder" type="number" value="{{.SelectedKey.SortOrder}}"></label>
+                    <span>
+                      <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedKey.IsEnabled}}checked{{end}}> 启用</label>
+                      <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
+                    </span>
+                    <span class="actions">
+                      <button class="secondary" type="submit" data-save disabled>保存</button>
+                      <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
+                    </span>
+                  </form>
+                </div>
                 <form id="delete-key-{{.SelectedKey.ID}}" method="post" action="/admin/keys/delete">
                   <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                   <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">

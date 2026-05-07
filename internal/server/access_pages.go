@@ -42,15 +42,15 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .channel-link, .user-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
     .user-link { min-height: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .channel-link:hover, .user-link:hover { background: #f1f4f8; }
-    .channel-link.active, .user-link.active { background: #eef4ff; border-color: #bed3ff; }
+    .channel-link.active, .user-link.active { background: #eef4ff; border-color: #86a8f7; box-shadow: inset 3px 0 0 var(--accent); }
     .meta-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     form { display: grid; gap: 10px; }
     form[id^="delete-"] { display: none; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #384252; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
-    input[type="checkbox"] { width: auto; }
-    .check { display: flex; align-items: center; gap: 8px; min-height: 38px; }
+    input[type="checkbox"] { width: 17px; height: 17px; }
+    .check { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #cbd3df; border-radius: 6px; background: #f8fafc; color: #303846; font-size: 13px; font-weight: 800; white-space: nowrap; }
     button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; white-space: nowrap; }
     button:disabled { cursor: not-allowed; opacity: .48; }
     button.secondary { background: #46515f; }
@@ -70,7 +70,11 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f7f9fc; }
-    .mini-link.active { border-color: #bed3ff; background: #eef4ff; }
+    .mini-link.active { border-color: #86a8f7; background: #eef4ff; box-shadow: inset 3px 0 0 var(--accent); }
+    .pane { display: grid; gap: 8px; min-width: 0; }
+    .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #526071; font-size: 12px; font-weight: 800; letter-spacing: 0; }
+    .pane-title::before { content: ""; width: 4px; height: 16px; border-radius: 999px; background: var(--accent); }
+    .pane-title span { margin-right: auto; margin-left: 8px; }
     .perm-form { display: grid; grid-template-columns: 1fr 140px 160px; gap: 10px; align-items: end; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; }
     .detail-form.user-form { grid-template-columns: 1fr 1fr; }
@@ -181,22 +185,28 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             </div>
             {{if .Selected.ChannelPermissions}}
               <div class="split" style="margin-top:12px">
-                <div class="row-list scroll-list">
-                  {{range .Selected.ChannelPermissions}}
-                    <a class="mini-link {{if and (eq $.SelectedPermProviderID .ProviderID) (eq $.SelectedPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{.ProviderID}}&permModelId={{.ModelID}}&userPermProviderId={{$.SelectedUserPermProviderID}}&userPermModelId={{$.SelectedUserPermModelID}}">
-                      {{.ProviderName}} / {{.ModelName}}
-                    </a>
-                  {{end}}
+                <div class="pane">
+                  <div class="pane-title"><span>授权列表</span></div>
+                  <div class="row-list scroll-list">
+                    {{range .Selected.ChannelPermissions}}
+                      <a class="mini-link {{if and (eq $.SelectedPermProviderID .ProviderID) (eq $.SelectedPermModelID .ModelID)}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{.ProviderID}}&permModelId={{.ModelID}}&userPermProviderId={{$.SelectedUserPermProviderID}}&userPermModelId={{$.SelectedUserPermModelID}}">
+                        {{.ProviderName}} / {{.ModelName}}
+                      </a>
+                    {{end}}
+                  </div>
                 </div>
                 {{if .SelectedChannelPermission}}
-                  <form class="perm-form" method="post" action="/admin/channel-permissions" data-dirty-form>
-                    <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                    <input type="hidden" name="providerId" value="{{.SelectedChannelPermission.ProviderID}}">
-                    <input type="hidden" name="modelId" value="{{.SelectedChannelPermission.ModelID}}">
-                    <label>授权对象<input value="{{.SelectedChannelPermission.ProviderName}} / {{.SelectedChannelPermission.ModelName}}" disabled></label>
-                    <label class="check"><input type="checkbox" name="allowed" value="1" {{if .SelectedChannelPermission.DefaultAllowed}}checked{{end}}> 默认允许</label>
-                    <button class="secondary" type="submit" data-save disabled>保存授权</button>
-                  </form>
+                  <div class="pane">
+                    <div class="pane-title"><span>授权详情</span></div>
+                    <form class="perm-form" method="post" action="/admin/channel-permissions" data-dirty-form>
+                      <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                      <input type="hidden" name="providerId" value="{{.SelectedChannelPermission.ProviderID}}">
+                      <input type="hidden" name="modelId" value="{{.SelectedChannelPermission.ModelID}}">
+                      <label>授权对象<input value="{{.SelectedChannelPermission.ProviderName}} / {{.SelectedChannelPermission.ModelName}}" disabled></label>
+                      <label class="check"><input type="checkbox" name="allowed" value="1" {{if .SelectedChannelPermission.DefaultAllowed}}checked{{end}}> 默认允许</label>
+                      <button class="secondary" type="submit" data-save disabled>保存授权</button>
+                    </form>
+                  </div>
                 {{end}}
               </div>
             {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
@@ -218,17 +228,21 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </details>
             </div>
             <div class="split" style="margin-top:12px">
-              <div class="user-list scroll-list">
-                {{range .Selected.Users}}
-                  <a class="user-link {{if eq $.SelectedUserID .ID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{.ID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}">
-                    {{.DisplayName}}
-                  </a>
-                {{else}}
-                  <div class="empty">这个渠道还没有用户。</div>
-                {{end}}
+              <div class="pane">
+                <div class="pane-title"><span>用户列表</span></div>
+                <div class="user-list scroll-list">
+                  {{range .Selected.Users}}
+                    <a class="user-link {{if eq $.SelectedUserID .ID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{.ID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}">
+                      {{.DisplayName}}
+                    </a>
+                  {{else}}
+                    <div class="empty">这个渠道还没有用户。</div>
+                  {{end}}
+                </div>
               </div>
               <div class="stack">
                 {{if .SelectedUser}}
+                  <div class="pane-title"><span>用户详情</span></div>
                   <form class="detail-form user-form" method="post" action="/admin/users/update" data-dirty-form>
                     <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
                     <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
@@ -246,29 +260,35 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                   </form>
                   {{if .UserPermissionProviders}}
                     <div class="split permission-zone">
-                      <div class="row-list scroll-list">
-                        {{range .UserPermissionProviders}}
-                          <a class="mini-link {{if eq $.SelectedUserPermProviderID .ProviderID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}">
-                            {{.ProviderName}}
-                          </a>
-                        {{end}}
+                      <div class="pane">
+                        <div class="pane-title"><span>Provider 列表</span></div>
+                        <div class="row-list scroll-list">
+                          {{range .UserPermissionProviders}}
+                            <a class="mini-link {{if eq $.SelectedUserPermProviderID .ProviderID}}active{{end}}" href="/admin/access?channelId={{$.Selected.Channel.ID}}&userId={{$.SelectedUserID}}&permProviderId={{$.SelectedPermProviderID}}&permModelId={{$.SelectedPermModelID}}&userPermProviderId={{.ProviderID}}">
+                              {{.ProviderName}}
+                            </a>
+                          {{end}}
+                        </div>
                       </div>
                       {{if .SelectedUserProviderPermissions}}
-                        <form class="model-permission-form" method="post" action="/admin/user-permissions" data-dirty-form>
-                          <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                          <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
-                          <input type="hidden" name="providerId" value="{{.SelectedUserPermProviderID}}">
-                          <div class="model-check-list">
-                            {{range .SelectedUserProviderPermissions}}
-                              <label class="model-check">
-                                <span>{{.ModelName}}</span>
-                                <input type="hidden" name="modelIds" value="{{.ModelID}}">
-                                <input type="checkbox" name="allowedModelIds" value="{{.ModelID}}" {{if .Allowed}}checked{{end}}>
-                              </label>
-                            {{end}}
-                          </div>
-                          <span class="actions"><button class="secondary" type="submit" data-save disabled>保存授权</button></span>
-                        </form>
+                        <div class="pane">
+                          <div class="pane-title"><span>Model 授权详情</span></div>
+                          <form class="model-permission-form" method="post" action="/admin/user-permissions" data-dirty-form>
+                            <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                            <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
+                            <input type="hidden" name="providerId" value="{{.SelectedUserPermProviderID}}">
+                            <div class="model-check-list">
+                              {{range .SelectedUserProviderPermissions}}
+                                <label class="model-check">
+                                  <span>{{.ModelName}}</span>
+                                  <input type="hidden" name="modelIds" value="{{.ModelID}}">
+                                  <input type="checkbox" name="allowedModelIds" value="{{.ModelID}}" {{if .Allowed}}checked{{end}}>
+                                </label>
+                              {{end}}
+                            </div>
+                            <span class="actions"><button class="secondary" type="submit" data-save disabled>保存授权</button></span>
+                          </form>
+                        </div>
                       {{end}}
                     </div>
                   {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
