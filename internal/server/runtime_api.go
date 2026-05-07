@@ -11,20 +11,16 @@ import (
 )
 
 type runtimeUserRequest struct {
-	ChannelID      string `json:"channelId"`
-	ChannelCode    string `json:"channelCode"`
-	Name           string `json:"name"`
-	ExternalUserID string `json:"externalUserId"`
-	DisplayName    string `json:"displayName"`
-	IsEnabled      *bool  `json:"isEnabled"`
+	ChannelID string `json:"channelId"`
+	Name      string `json:"name"`
+	IsEnabled *bool  `json:"isEnabled"`
 }
 
 type runtimeUserResponse struct {
-	ID             string `json:"id"`
-	ChannelID      string `json:"channelId"`
-	ExternalUserID string `json:"externalUserId"`
-	Name           string `json:"name"`
-	IsEnabled      bool   `json:"isEnabled"`
+	ID        string `json:"id"`
+	ChannelID string `json:"channelId"`
+	Name      string `json:"name"`
+	IsEnabled bool   `json:"isEnabled"`
 }
 
 type runtimePermissionsResponse struct {
@@ -101,31 +97,24 @@ func runtimeUpsertUserHandler(store *admin.Store) http.HandlerFunc {
 			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
 			return
 		}
-		name := request.Name
-		if strings.TrimSpace(name) == "" {
-			name = request.DisplayName
-		}
 		isEnabled := true
 		if request.IsEnabled != nil {
 			isEnabled = *request.IsEnabled
 		}
 		user, err := store.UpsertRuntimeUser(r.Context(), admin.UpsertRuntimeUserInput{
-			ChannelID:      request.ChannelID,
-			ChannelCode:    request.ChannelCode,
-			ExternalUserID: request.ExternalUserID,
-			Name:           name,
-			IsEnabled:      isEnabled,
+			ChannelID: request.ChannelID,
+			Name:      request.Name,
+			IsEnabled: isEnabled,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "VALIDATION_ERROR", err.Error(), nil)
 			return
 		}
 		web.WriteJSON(w, http.StatusOK, runtimeUserResponse{
-			ID:             user.ID,
-			ChannelID:      user.ChannelID,
-			ExternalUserID: user.ExternalUserID,
-			Name:           user.DisplayName,
-			IsEnabled:      user.IsEnabled,
+			ID:        user.ID,
+			ChannelID: user.ChannelID,
+			Name:      user.DisplayName,
+			IsEnabled: user.IsEnabled,
 		})
 	}
 }
@@ -155,7 +144,7 @@ func runtimeProvidersHandler(store *admin.Store) http.HandlerFunc {
 
 func runtimeModelsHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		models, err := store.ListRuntimeModels(r.Context(), r.URL.Query().Get("providerId"), r.URL.Query().Get("providerCode"))
+		models, err := store.ListRuntimeModels(r.Context(), r.URL.Query().Get("providerId"))
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "VALIDATION_ERROR", err.Error(), nil)
 			return

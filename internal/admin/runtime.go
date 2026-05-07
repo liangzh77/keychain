@@ -9,11 +9,9 @@ import (
 )
 
 type UpsertRuntimeUserInput struct {
-	ChannelID      string
-	ChannelCode    string
-	ExternalUserID string
-	Name           string
-	IsEnabled      bool
+	ChannelID string
+	Name      string
+	IsEnabled bool
 }
 
 type RuntimeProvider struct {
@@ -59,19 +57,11 @@ type KeyFailureResult struct {
 
 func (store *Store) UpsertRuntimeUser(ctx context.Context, input UpsertRuntimeUserInput) (User, error) {
 	input.ChannelID = strings.TrimSpace(input.ChannelID)
-	input.ChannelCode = strings.TrimSpace(input.ChannelCode)
-	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
 	input.Name = strings.TrimSpace(input.Name)
-	if input.ExternalUserID == "" {
-		input.ExternalUserID = input.Name
-	}
 	if input.Name == "" {
-		input.Name = input.ExternalUserID
-	}
-	if input.Name == "" || input.ExternalUserID == "" {
 		return User{}, fmt.Errorf("user name is required")
 	}
-	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID, input.ChannelCode)
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
 	if err != nil {
 		return User{}, err
 	}
@@ -83,11 +73,11 @@ INSERT INTO users (id, channel_id, external_user_id, display_name, is_enabled, c
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(channel_id, external_user_id)
 DO UPDATE SET display_name = excluded.display_name, is_enabled = excluded.is_enabled, updated_at = excluded.updated_at;
-`, id, channel.ID, input.ExternalUserID, input.Name, boolToInt(input.IsEnabled), now, now); err != nil {
+`, id, channel.ID, input.Name, input.Name, boolToInt(input.IsEnabled), now, now); err != nil {
 		return User{}, fmt.Errorf("upsert runtime user: %w", err)
 	}
 
-	user, err := store.lookupUserByExternalID(ctx, channel.ID, input.ExternalUserID)
+	user, err := store.lookupUserByName(ctx, channel.ID, input.Name)
 	if err != nil {
 		return User{}, err
 	}
@@ -120,8 +110,8 @@ ORDER BY name ASC;
 	return providers, nil
 }
 
-func (store *Store) ListRuntimeModels(ctx context.Context, providerID string, providerCode string) ([]RuntimeModel, error) {
-	provider, err := store.lookupEnabledProvider(ctx, providerID, providerCode)
+func (store *Store) ListRuntimeModels(ctx context.Context, providerID string) ([]RuntimeModel, error) {
+	provider, err := store.lookupEnabledProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
@@ -421,25 +411,16 @@ WHERE channel_id = ? AND provider_id = ? AND model_id = ?;
 	return defaultMode == "ALLOW", nil
 }
 
-func (store *Store) lookupEnabledChannel(ctx context.Context, channelID string, channelCode string) (Channel, error) {
+func (store *Store) lookupEnabledChannel(ctx context.Context, channelID string) (Channel, error) {
 	channelID = strings.TrimSpace(channelID)
-	channelCode = strings.TrimSpace(channelCode)
-	var row *sql.Row
-	if channelID != "" {
-		row = store.db.QueryRowContext(ctx, `
+	if channelID == "" {
+		return Channel{}, fmt.Errorf("channel id is required")
+	}
+	row := store.db.QueryRowContext(ctx, `
 SELECT id, name, code, default_permission_mode, is_enabled
 FROM channels
 WHERE id = ?;
 `, channelID)
-	} else if channelCode != "" {
-		row = store.db.QueryRowContext(ctx, `
-SELECT id, name, code, default_permission_mode, is_enabled
-FROM channels
-WHERE code = ?;
-`, channelCode)
-	} else {
-		return Channel{}, fmt.Errorf("channel id is required")
-	}
 	var channel Channel
 	var isEnabled int
 	if err := row.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &isEnabled); err != nil {
@@ -452,25 +433,16 @@ WHERE code = ?;
 	return channel, nil
 }
 
-func (store *Store) lookupEnabledProvider(ctx context.Context, providerID string, providerCode string) (Provider, error) {
+func (store *Store) lookupEnabledProvider(ctx context.Context, providerID string) (Provider, error) {
 	providerID = strings.TrimSpace(providerID)
-	providerCode = strings.TrimSpace(providerCode)
-	var row *sql.Row
-	if providerID != "" {
-		row = store.db.QueryRowContext(ctx, `
+	if providerID == "" {
+		return Provider{}, fmt.Errorf("provider id is required")
+	}
+	row := store.db.QueryRowContext(ctx, `
 SELECT id, name, code, is_enabled, rotation_strategy, created_at, updated_at
 FROM providers
 WHERE id = ?;
 `, providerID)
-	} else if providerCode != "" {
-		row = store.db.QueryRowContext(ctx, `
-SELECT id, name, code, is_enabled, rotation_strategy, created_at, updated_at
-FROM providers
-WHERE code = ?;
-`, providerCode)
-	} else {
-		return Provider{}, fmt.Errorf("provider id is required")
-	}
 	var provider Provider
 	var isEnabled int
 	if err := row.Scan(&provider.ID, &provider.Name, &provider.Code, &isEnabled, &provider.RotationStrategy, &provider.CreatedAt, &provider.UpdatedAt); err != nil {
@@ -483,14 +455,14 @@ WHERE code = ?;
 	return provider, nil
 }
 
-func (store *Store) lookupUserByExternalID(ctx context.Context, channelID string, externalUserID string) (User, error) {
+func (store *Store) lookupUserByName(ctx context.Context, channelID string, name string) (User, error) {
 	var user User
 	var isEnabled int
 	if err := store.db.QueryRowContext(ctx, `
 SELECT id, channel_id, external_user_id, display_name, is_enabled
 FROM users
 WHERE channel_id = ? AND external_user_id = ?;
-`, channelID, externalUserID).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
+`, channelID, name).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
 		return User{}, wrapNotFound(err, "user not found")
 	}
 	user.IsEnabled = isEnabled == 1

@@ -112,10 +112,10 @@ page=1&pageSize=20
 
 后台管理界面以“名称”为主要识别信息，不要求管理员填写 `code`。
 
-- `provider.code`、`model.code`、`channel.code` 是内部兼容字段，可由服务端根据名称自动生成或保留旧值。
+- `provider.code`、`model.code`、`channel.code` 是内部字段，可由服务端根据名称自动生成。
 - 后台创建和更新 provider、model、channel 时，客户端只需要提交 `name`。
-- 后台用户只展示一个名称字段，API 统一使用 `name`；兼容旧数据时，服务端可以把 `externalUserId` 视为内部字段，默认等于 `name`。
-- Runtime API 优先使用稳定的 `id` 字段；如需兼容旧调用系统，可继续接受 `*Code` 字段。
+- 后台用户只展示一个名称字段，API 统一使用 `name`。
+- Runtime API 使用稳定的 `id` 字段，不接受 `*Code` 字段。
 
 ### Providers
 
@@ -150,7 +150,7 @@ Provider 字段：
 }
 ```
 
-兼容说明：响应或旧接口中可能仍包含内部字段 `code`，但前端不展示，也不应要求管理员填写。
+说明：`code` 是内部字段，前端不展示，也不要求管理员填写。
 
 `rotationStrategy` 可选：
 
@@ -167,7 +167,7 @@ PATCH  /api/models/:id
 DELETE /api/models/:id
 ```
 
-Models 列表必须按 provider 过滤。调用方必须传 `providerId`，接口只返回一个 provider 下的 models。为兼容旧调用方，可以继续支持 `providerCode`。
+Models 列表必须按 provider 过滤。调用方必须传 `providerId`，接口只返回一个 provider 下的 models。
 
 ```http
 GET /api/models?providerId=provider_001
@@ -194,7 +194,7 @@ Model 字段：
 }
 ```
 
-兼容说明：响应或旧接口中可能仍包含内部字段 `code`，但前端不展示，也不应要求管理员填写。
+说明：`code` 是内部字段，前端不展示，也不要求管理员填写。
 
 ### Keys
 
@@ -266,7 +266,7 @@ Channel 字段：
 }
 ```
 
-兼容说明：`code` 是内部兼容字段，后台不展示。创建时如果未提供 `code`，服务端自动生成；更新时服务端保留旧值。
+说明：`code` 是内部字段，后台不展示。创建时由服务端自动生成。
 
 `defaultPermissionMode` 可选：
 
@@ -310,7 +310,7 @@ User 字段：
 }
 ```
 
-兼容说明：旧数据结构中的 `externalUserId` 和 `displayName` 不再作为后台界面的两个独立字段展示。服务端可把 `name` 同步到 `displayName`，并在 `externalUserId` 为空时默认使用 `name`。
+说明：后台用户 API 只使用 `name` 作为用户名称。
 
 ### Permissions
 
@@ -437,7 +437,6 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ```json
 {
   "channelId": "channel_001",
-  "externalUserId": "student-001",
   "name": "Student 001"
 }
 ```
@@ -448,13 +447,10 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 {
   "id": "user_001",
   "channelId": "channel_001",
-  "externalUserId": "student-001",
   "name": "Student 001",
   "isEnabled": true
 }
 ```
-
-兼容说明：如果调用系统仍使用旧字段，服务端可继续接受 `channelCode`、`displayName`；其中 `displayName` 应映射为 `name`。
 
 ### GET /api/runtime/users/:id/permissions
 
@@ -483,7 +479,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 ### GET /api/runtime/models
 
-查询可用 models 列表。必须传 `providerId`，接口只返回一个 provider 下的 models。为兼容旧调用系统，可以继续接受 `providerCode`。
+查询可用 models 列表。必须传 `providerId`，接口只返回一个 provider 下的 models。
 
 ```http
 GET /api/runtime/models?providerId=provider_001
@@ -516,8 +512,6 @@ GET /api/runtime/models?providerId=provider_001
   "key": "sk-real-key"
 }
 ```
-
-兼容说明：旧调用系统如仍提交 `channelCode`、`externalUserId`、`providerCode`、`modelCode`，服务端可以保留兼容入口；新实现优先使用 `id`。
 
 ### POST /api/runtime/key-failures
 
