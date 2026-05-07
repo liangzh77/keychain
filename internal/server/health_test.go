@@ -57,3 +57,28 @@ func TestHealthIncludesDatabaseStatus(t *testing.T) {
 		t.Fatalf("database = %q, want ok", body.Database)
 	}
 }
+
+func TestHealthzReturnsOK(t *testing.T) {
+	handler := NewRouter(Options{
+		HealthCheck: func(_ context.Context) error {
+			return nil
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", response.Code, http.StatusOK)
+	}
+
+	var body healthzResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.OK {
+		t.Fatal("ok = false, want true")
+	}
+}

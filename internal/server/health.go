@@ -14,8 +14,24 @@ type healthResponse struct {
 	Time     string `json:"time"`
 }
 
+type healthzResponse struct {
+	OK bool `json:"ok"`
+}
+
 func healthHandler(now func() time.Time) http.HandlerFunc {
 	return healthHandlerWithCheck(now, nil)
+}
+
+func healthzHandler(healthCheck func(context.Context) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if healthCheck != nil {
+			if err := healthCheck(r.Context()); err != nil {
+				web.WriteJSON(w, http.StatusServiceUnavailable, healthzResponse{OK: false})
+				return
+			}
+		}
+		web.WriteJSON(w, http.StatusOK, healthzResponse{OK: true})
+	}
 }
 
 func healthHandlerWithCheck(now func() time.Time, healthCheck func(context.Context) error) http.HandlerFunc {

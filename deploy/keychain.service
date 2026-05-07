@@ -1,0 +1,16 @@
+[Unit]
+Description=keychain
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/apps/keychain/shared
+EnvironmentFile=/srv/apps/keychain/shared/config.env
+ExecStart=/srv/apps/keychain/current/keychain
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

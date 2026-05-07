@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="keychain"
+APP_BINARY="keychain"
+BUILD_TARGET="./cmd/server"
+APP_PORT="8080"
+SERVICE_NAME="keychain"
+
+GIT_DIR="/srv/git/${APP_NAME}.git"
+BUILD_DIR="/srv/build/${APP_NAME}"
+APP_DIR="/srv/apps/${APP_NAME}"
+RELEASES_DIR="${APP_DIR}/releases"
+SHARED_DIR="${APP_DIR}/shared"
+
+mkdir -p "${BUILD_DIR}" "${RELEASES_DIR}" "${SHARED_DIR}/data"
+
+while read -r _oldrev _newrev refname; do
+  if [[ "${refname}" != "refs/heads/main" ]]; then
+    echo "Skip ${refname}; only main deploys."
+    exit 0
+  fi
+done
+
+git --work-tree="${BUILD_DIR}" --git-dir="${GIT_DIR}" checkout -f main
+
+cd "${BUILD_DIR}"
+go build -o "${APP_BINARY}" "${BUILD_TARGET}"
+
+release_id="$(date +%Y%m%d-%H%M%S)"
+new_release="${RELEASES_DIR}/${release_id}"
+mkdir -p "${new_release}"
+cp "${APP_BINARY}" "${new_release}/${APP_BINARY}"
+
+if [[ -L "${APP_DIR}/current" ]]; then
+  old_target="$(readlink -f "${APP_DIR}/current")"
+  ln -sfn "${old_target}" "${APP_DIR}/previous"
+fi
+
+ln -sfn "${new_release}" "${APP_DIR}/current"
+
+if ! sudo systemctl restart "${SERVICE_NAME}"; then
+  echo "systemctl restart failed"
+  exit 1
+fi
+
+if ! curl -fsS "http://127.0.0.1:${APP_PORT}/healthz" >/dev/null; then
+  echo "Health check failed, rolling back."
+
+  if [[ -L "${APP_DIR}/previous" ]]; then
+    rollback_target="$(readlink -f "${APP_DIR}/previous")"
+    ln -sfn "${rollback_target}" "${APP_DIR}/current"
+    sudo systemctl restart "${SERVICE_NAME}"
+  fi
+
+  rm -rf "${new_release}"
+  exit 1
+fi
+
+echo "Release deployed: ${new_release}"

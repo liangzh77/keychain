@@ -14,6 +14,7 @@ type Config struct {
 	SessionSecret   string
 	RuntimeAPIToken string
 	DatabasePath    string
+	DataDir         string
 	HTTPAddr        string
 }
 
@@ -24,15 +25,25 @@ func Load(envPath string) (Config, error) {
 	}
 
 	cfg := Config{
-		AdminUsername:   getConfigValue(fileValues, "ADMIN_USERNAME"),
-		AdminPassword:   getConfigValue(fileValues, "ADMIN_PASSWORD"),
-		SessionSecret:   getConfigValue(fileValues, "SESSION_SECRET"),
-		RuntimeAPIToken: getConfigValue(fileValues, "RUNTIME_API_TOKEN"),
-		DatabasePath:    getConfigValue(fileValues, "DATABASE_PATH"),
-		HTTPAddr:        getConfigValue(fileValues, "HTTP_ADDR"),
+		AdminUsername:   getConfigValue(fileValues, "KEYCHAIN_ADMIN_USERNAME", "ADMIN_USERNAME"),
+		AdminPassword:   getConfigValue(fileValues, "KEYCHAIN_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
+		SessionSecret:   getConfigValue(fileValues, "KEYCHAIN_SESSION_SECRET", "SESSION_SECRET"),
+		RuntimeAPIToken: getConfigValue(fileValues, "KEYCHAIN_RUNTIME_API_TOKEN", "RUNTIME_API_TOKEN"),
+		DatabasePath:    getConfigValue(fileValues, "KEYCHAIN_DB_PATH", "DATABASE_PATH"),
+		DataDir:         getConfigValue(fileValues, "KEYCHAIN_DATA_DIR"),
+		HTTPAddr:        getConfigValue(fileValues, "KEYCHAIN_ADDR", "HTTP_ADDR"),
+	}
+	if cfg.AdminUsername == "" {
+		cfg.AdminUsername = "admin"
 	}
 	if cfg.HTTPAddr == "" {
-		cfg.HTTPAddr = ":8080"
+		cfg.HTTPAddr = "127.0.0.1:8080"
+	}
+	if cfg.DatabasePath == "" {
+		cfg.DatabasePath = "app.db"
+	}
+	if cfg.DataDir == "" {
+		cfg.DataDir = "data"
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -54,9 +65,6 @@ func (cfg Config) Validate() error {
 	}
 	if cfg.RuntimeAPIToken == "" {
 		missing = append(missing, "RUNTIME_API_TOKEN")
-	}
-	if cfg.DatabasePath == "" {
-		missing = append(missing, "DATABASE_PATH")
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("missing required config: %s", strings.Join(missing, ", "))
@@ -111,9 +119,16 @@ func trimEnvValue(value string) string {
 	return value
 }
 
-func getConfigValue(fileValues map[string]string, key string) string {
-	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return value
+func getConfigValue(fileValues map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			return value
+		}
 	}
-	return strings.TrimSpace(fileValues[key])
+	for _, key := range keys {
+		if value := strings.TrimSpace(fileValues[key]); value != "" {
+			return value
+		}
+	}
+	return ""
 }

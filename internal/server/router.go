@@ -22,6 +22,7 @@ func NewRouter(options Options) http.Handler {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", healthzHandler(options.HealthCheck))
 	mux.HandleFunc("GET /api/health", healthHandlerWithCheck(options.Now, options.HealthCheck))
 	if options.Auth != nil {
 		registerAuthRoutes(mux, options.Auth)

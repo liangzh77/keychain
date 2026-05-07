@@ -60,6 +60,7 @@ func (database *DB) configure(ctx context.Context) error {
 		"PRAGMA foreign_keys = ON",
 		"PRAGMA busy_timeout = 5000",
 		"PRAGMA journal_mode = WAL",
+		"PRAGMA synchronous = NORMAL",
 	}
 	for _, pragma := range pragmas {
 		if _, err := database.sql.ExecContext(ctx, pragma); err != nil {

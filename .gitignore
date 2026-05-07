@@ -1,11 +1,14 @@
 .env
 .env.local
 .env.*.local
+config.env
 
 *.db
 *.db-shm
 *.db-wal
 
+app.db
+data/
 bin/
 dist/
 tmp/
