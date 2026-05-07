@@ -18,7 +18,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Keychain 渠道与授权</title>
   <style>
-    :root { --bg: #f7f8fa; --surface: #fff; --line: #d9dee7; --line-soft: #edf0f4; --text: #17202a; --muted: #687385; --accent: #2463eb; --danger: #b42318; }
+    :root { --bg: #f4f1ea; --surface: #fffcf5; --surface-muted: #f7f2ea; --line: #d7cdbf; --line-soft: #ece4d8; --text: #242824; --muted: #6f7169; --accent: #31594a; --accent-soft: #e8efe8; --accent-line: #9fb9aa; --secondary: #5a5448; --danger: #9b3d35; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
     header { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -26,7 +26,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .brand { display: flex; align-items: baseline; gap: 10px; }
     .brand strong { font-size: 16px; }
     .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
-    aside { border-right: 1px solid var(--line); background: #fbfcfd; overflow: auto; padding: 16px; }
+    aside { border-right: 1px solid var(--line); background: var(--surface-muted); overflow: auto; padding: 16px; }
     main { overflow: auto; padding: 16px 20px 24px; }
     h1, h2, h3 { margin: 0; line-height: 1.2; }
     h1 { font-size: 22px; }
@@ -40,28 +40,28 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .stack { display: grid; gap: 12px; }
     .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 14px; }
     .tab { padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; }
-    .tab.active, .tab:hover { background: #eef4ff; color: var(--accent); }
+    .tab.active, .tab:hover { background: var(--accent-soft); color: var(--accent); }
     .channel-list, .user-list, .row-list { display: grid; gap: 6px; margin-top: 10px; }
     .channel-link, .user-link { display: block; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; color: inherit; text-decoration: none; }
     .user-link { min-height: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .channel-link:hover, .user-link:hover { background: #f1f4f8; }
-    .channel-link.active, .user-link.active { background: #eef4ff; border-color: #86a8f7; box-shadow: inset 3px 0 0 var(--accent); }
+    .channel-link:hover, .user-link:hover { background: #f0ebe2; }
+    .channel-link.active, .user-link.active { background: var(--accent-soft); border-color: var(--accent-line); box-shadow: inset 3px 0 0 var(--accent); }
     .meta-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
     .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     form { display: grid; gap: 10px; }
     form[id^="delete-"] { display: none; }
-    label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #384252; }
-    input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd3df; border-radius: 6px; font: inherit; background: #fff; color: var(--text); }
+    label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #45483f; }
+    input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d2c7b7; border-radius: 6px; font: inherit; background: #fffdf8; color: var(--text); }
     input[type="checkbox"] { width: 17px; height: 17px; }
-    .check { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #cbd3df; border-radius: 6px; background: #f8fafc; color: #303846; font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .check { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border: 1px solid #d2c7b7; border-radius: 6px; background: #faf7f0; color: #3e433d; font-size: 13px; font-weight: 800; white-space: nowrap; }
     button { height: 38px; padding: 0 12px; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: 700; white-space: nowrap; }
     button:disabled { cursor: not-allowed; opacity: .48; }
-    button.secondary { background: #46515f; }
+    button.secondary { background: var(--secondary); }
     button.danger { background: var(--danger); }
-    button.ghost { background: #eef1f5; color: #303846; }
+    button.ghost { background: #efe9df; color: #3e433d; }
     details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
     details.add-panel > summary::-webkit-details-marker { display: none; }
-    details.add-panel[open] > summary { margin-bottom: 12px; background: #46515f; }
+    details.add-panel[open] > summary { margin-bottom: 12px; background: var(--secondary); }
     details.add-panel.wide-add > summary { min-width: 132px; padding: 0 18px; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .channel-form { grid-template-columns: minmax(0, 1fr) 160px 110px 170px; }
@@ -71,11 +71,11 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
-    .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mini-link:hover { background: #f7f9fc; }
-    .mini-link.active { border-color: #86a8f7; background: #eef4ff; box-shadow: inset 3px 0 0 var(--accent); }
+    .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mini-link:hover { background: #f6f1e8; }
+    .mini-link.active { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
     .pane { display: grid; gap: 8px; min-width: 0; }
-    .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #526071; font-size: 12px; font-weight: 800; letter-spacing: 0; }
+    .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #5f6259; font-size: 12px; font-weight: 800; letter-spacing: 0; }
     .pane-title::before { content: ""; width: 4px; height: 16px; border-radius: 999px; background: var(--accent); }
     .pane-title span { margin-right: auto; margin-left: 8px; }
     .perm-form { display: grid; grid-template-columns: 1fr 140px 160px; gap: 10px; align-items: end; }
@@ -89,12 +89,12 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .permission-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .bulk-actions { display: flex; align-items: center; gap: 6px; }
     .model-check-list { display: grid; gap: 8px; max-height: 276px; overflow-y: auto; padding-right: 2px; }
-    .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fff; font-size: 13px; font-weight: 700; color: var(--text); }
+    .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fffdf8; font-size: 13px; font-weight: 700; color: var(--text); }
     .model-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff7e6; color: #8a5a00; }
+    .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff6df; color: #7a5a22; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
-    .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: #eef4ff; color: #1f4f9a; font-size: 12px; font-weight: 700; }
-    .tag.off { background: #f2f3f5; color: #697386; }
+    .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
+    .tag.off { background: #e9e4db; color: #746f66; }
     @media (max-width: 1180px) { .authorization-grid { grid-template-columns: 1fr; } }
     @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .half-card { width: 100%; min-width: 0; } .user-actions { justify-content: start; flex-wrap: wrap; } }
   </style>
