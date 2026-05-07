@@ -97,13 +97,16 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     button.secondary { background: var(--secondary); }
     button.danger { background: var(--danger); }
     button.ghost { background: #efe9df; color: #3e433d; }
+    details.add-panel { position: relative; }
     details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: var(--secondary); }
     details.add-panel.wide-add > summary { min-width: 138px; padding: 0 18px; }
+    details.add-panel .add-cancel { display: none; position: absolute; top: 7px; right: 7px; width: 24px; height: 24px; padding: 0; border-radius: 999px; background: #efe9df; color: #5a5448; font-size: 18px; line-height: 1; }
+    details.add-panel[open] .add-cancel { display: inline-flex; align-items: center; justify-content: center; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
     .section-title > details.add-panel[open] { grid-column: 1 / -1; }
-    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 138px; margin-left: auto; }
+    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 138px; margin-left: auto; margin-right: 34px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f6f1e8; }
@@ -143,6 +146,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       <div class="stack">
         <details class="panel panel-pad add-panel">
           <summary>添加 Provider</summary>
+          <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
           <form method="post" action="/admin/providers">
             <label>名称<input name="name" placeholder="OpenAI" required></label>
             <label>Key 分发策略
@@ -221,6 +225,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               </div>
               <details class="add-panel wide-add">
                 <summary>添加 Model</summary>
+                <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
                 <form class="form-grid model-form" method="post" action="/admin/models">
                   <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                   <label>名称<input name="name" placeholder="GPT 4.1" required></label>
@@ -273,6 +278,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             </div>
             <details class="add-panel wide-add">
               <summary>添加 Key</summary>
+              <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
               <form class="form-grid key-form" method="post" action="/admin/keys">
                 <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                 <input type="hidden" name="sortOrder" value="{{.Selected.NextKeySortOrder}}">
@@ -350,6 +356,15 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       form.addEventListener('input', sync);
       form.addEventListener('change', sync);
       sync();
+    });
+    document.querySelectorAll('[data-close-add]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const details = button.closest('details');
+        if (!details) return;
+        const form = details.querySelector('form');
+        if (form) form.reset();
+        details.open = false;
+      });
     });
     document.querySelectorAll('[data-sortable-keys]').forEach((form) => {
       let dragged = null;

@@ -59,10 +59,13 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     button.secondary { background: var(--secondary); }
     button.danger { background: var(--danger); }
     button.ghost { background: #efe9df; color: #3e433d; }
+    details.add-panel { position: relative; }
     details.add-panel > summary { list-style: none; display: flex; justify-content: center; align-items: center; height: 38px; border-radius: 6px; background: var(--accent); color: white; font-weight: 700; cursor: pointer; }
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: var(--secondary); }
     details.add-panel.wide-add > summary { min-width: 132px; padding: 0 18px; }
+    details.add-panel .add-cancel { display: none; position: absolute; top: 7px; right: 7px; width: 24px; height: 24px; padding: 0; border-radius: 999px; background: #efe9df; color: #5a5448; font-size: 18px; line-height: 1; }
+    details.add-panel[open] .add-cancel { display: inline-flex; align-items: center; justify-content: center; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .form-grid > *, .detail-form > *, .perm-form > * { min-width: 0; }
     .channel-form { grid-template-columns: minmax(180px, 1fr) minmax(160px, 200px) auto auto; }
@@ -72,7 +75,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
     .section-title > details.add-panel[open] { grid-column: 1 / -1; }
-    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 132px; margin-left: auto; }
+    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 132px; margin-left: auto; margin-right: 34px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f6f1e8; }
@@ -118,6 +121,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         </section>
         <details class="panel panel-pad add-panel">
           <summary>添加渠道</summary>
+          <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
           <form method="post" action="/admin/channels">
             <label>名称<input name="name" placeholder="本校默认渠道" required></label>
             <label>默认权限
@@ -320,6 +324,15 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       form.addEventListener('input', sync);
       form.addEventListener('change', sync);
       sync();
+    });
+    document.querySelectorAll('[data-close-add]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const details = button.closest('details');
+        if (!details) return;
+        const form = details.querySelector('form');
+        if (form) form.reset();
+        details.open = false;
+      });
     });
     document.querySelectorAll('[data-check-all], [data-check-none]').forEach((button) => {
       button.addEventListener('click', () => {
