@@ -81,11 +81,12 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     form { display: grid; gap: 10px; }
     form[id^="delete-"] { display: none; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .settings-grid { display: grid; grid-template-columns: minmax(220px, 1fr) 220px 120px 150px; gap: 10px; align-items: end; }
-    .resource-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
-    .detail-grid { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .form-grid > *, .settings-grid > *, .detail-form > * { min-width: 0; }
+    .settings-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 220px) auto auto; gap: 10px; align-items: end; }
+    .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
+    .detail-grid { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; gap: 10px; align-items: end; }
-    .key-form { grid-template-columns: 1fr 1.3fr 90px 130px; }
+    .key-form { grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.3fr) 80px auto auto; }
     .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #45483f; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d2c7b7; border-radius: 6px; font: inherit; background: #fffdf8; color: var(--text); }
@@ -100,7 +101,9 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     details.add-panel > summary::-webkit-details-marker { display: none; }
     details.add-panel[open] > summary { margin-bottom: 12px; background: var(--secondary); }
     details.add-panel.wide-add > summary { min-width: 138px; padding: 0 18px; }
-    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+    .section-title > details.add-panel[open] { grid-column: 1 / -1; }
+    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 138px; margin-left: auto; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f6f1e8; }
@@ -110,17 +113,20 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #5f6259; font-size: 12px; font-weight: 800; letter-spacing: 0; }
     .pane-title::before { content: ""; width: 4px; height: 16px; border-radius: 999px; background: var(--accent); }
     .pane-title span { margin-right: auto; margin-left: 8px; }
-    .actions { display: flex; justify-content: flex-end; gap: 6px; }
-    .detail-form.key-form { grid-template-columns: 1fr 1fr; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .inline-checks { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
+    .detail-form.key-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .detail-form.key-form .actions { grid-column: 1 / -1; }
     .detail-form.model-form { grid-template-columns: minmax(0, 1fr) 90px 104px; }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
     .tag.off { background: #e9e4db; color: #746f66; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff6df; color: #7a5a22; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
-    .half-card { width: calc(50% - 6px); min-width: 520px; }
-    @media (max-width: 1180px) { .resource-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 980px) { .app, .detail-grid { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .half-card { width: 100%; min-width: 0; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } }
+    .half-card { width: min(720px, 100%); }
+    @media (max-width: 1320px) { .resource-grid { grid-template-columns: 1fr; } .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .settings-grid .actions { justify-content: flex-start; } }
+    @media (max-width: 1120px) { .key-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } }
+    @media (max-width: 760px) { .detail-grid, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
 </head>
 <body>
@@ -268,7 +274,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                 <label>别名<input name="alias" placeholder="openai-main-01" required></label>
                 <label>Key 明文<input name="secretValue" placeholder="sk-..." required></label>
                 <label>排序<input name="sortOrder" type="number" value="0"></label>
-                <span>
+                <span class="inline-checks">
                   <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
                   <label class="check"><input type="checkbox" name="isAvailable" value="1" checked> 可用</label>
                 </span>
@@ -297,7 +303,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                     <label>别名<input name="alias" value="{{.SelectedKey.Alias}}" required></label>
                     <label>替换明文<input name="secretValue" placeholder="{{.SelectedKey.MaskedValue}}，留空不替换"></label>
                     <label>排序<input name="sortOrder" type="number" value="{{.SelectedKey.SortOrder}}"></label>
-                    <span>
+                    <span class="inline-checks">
                       <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedKey.IsEnabled}}checked{{end}}> 启用</label>
                       <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
                     </span>

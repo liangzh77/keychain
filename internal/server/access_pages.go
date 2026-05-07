@@ -64,12 +64,15 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     details.add-panel[open] > summary { margin-bottom: 12px; background: var(--secondary); }
     details.add-panel.wide-add > summary { min-width: 132px; padding: 0 18px; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
-    .channel-form { grid-template-columns: minmax(0, 1fr) 160px 110px 170px; }
-    .user-form { grid-template-columns: 1fr 1fr 120px 160px; }
-    .authorization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
-    .split { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .form-grid > *, .detail-form > *, .perm-form > * { min-width: 0; }
+    .channel-form { grid-template-columns: minmax(180px, 1fr) minmax(160px, 200px) auto auto; }
+    .user-form { grid-template-columns: minmax(0, 1fr) auto auto; }
+    .authorization-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
+    .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
-    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+    .section-title > details.add-panel[open] { grid-column: 1 / -1; }
+    .section-title > details.add-panel[open] > summary { width: max-content; min-width: 132px; margin-left: auto; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f6f1e8; }
@@ -78,16 +81,16 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #5f6259; font-size: 12px; font-weight: 800; letter-spacing: 0; }
     .pane-title::before { content: ""; width: 4px; height: 16px; border-radius: 999px; background: var(--accent); }
     .pane-title span { margin-right: auto; margin-left: 8px; }
-    .perm-form { display: grid; grid-template-columns: 1fr 140px 160px; gap: 10px; align-items: end; }
-    .actions { display: flex; justify-content: flex-end; gap: 6px; }
-    .detail-form.user-form { grid-template-columns: 1fr 1fr; }
+    .perm-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: end; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .detail-form.user-form { grid-template-columns: minmax(0, 1fr) auto; }
     .detail-form.user-form .actions { grid-column: 1 / -1; }
-    .half-card { width: calc(50% - 6px); min-width: 520px; }
-    .user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .half-card { width: min(720px, 100%); }
+    .user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
     .permission-zone { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
     .model-permission-form { display: grid; gap: 10px; }
-    .permission-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .bulk-actions { display: flex; align-items: center; gap: 6px; }
+    .permission-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .bulk-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .model-check-list { display: grid; gap: 8px; max-height: 276px; overflow-y: auto; padding-right: 2px; }
     .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fffdf8; font-size: 13px; font-weight: 700; color: var(--text); }
     .model-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -95,8 +98,9 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
     .tag.off { background: #e9e4db; color: #746f66; }
-    @media (max-width: 1180px) { .authorization-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 980px) { .app, .form-grid, .split, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .half-card { width: 100%; min-width: 0; } .user-actions { justify-content: start; flex-wrap: wrap; } }
+    @media (max-width: 1320px) { .authorization-grid { grid-template-columns: 1fr; } .channel-form, .perm-form, .detail-form.user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions, .user-actions { justify-content: flex-start; } }
+    @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; } .actions, .user-actions { justify-content: flex-start; } }
+    @media (max-width: 760px) { .split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
 </head>
 <body>
