@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
 APP_NAME="keychain"
 APP_BINARY="keychain"
 BUILD_TARGET="./cmd/server"
@@ -15,12 +17,19 @@ SHARED_DIR="${APP_DIR}/shared"
 
 mkdir -p "${BUILD_DIR}" "${RELEASES_DIR}" "${SHARED_DIR}/data"
 
-while read -r _oldrev _newrev refname; do
-  if [[ "${refname}" != "refs/heads/main" ]]; then
-    echo "Skip ${refname}; only main deploys."
+if read -r -t 0; then
+  deploy_main=false
+  while read -r _oldrev _newrev refname; do
+    if [[ "${refname}" == "refs/heads/main" ]]; then
+      deploy_main=true
+    fi
+  done
+
+  if [[ "${deploy_main}" != true ]]; then
+    echo "Skip; only main deploys."
     exit 0
   fi
-done
+fi
 
 git --work-tree="${BUILD_DIR}" --git-dir="${GIT_DIR}" checkout -f main
 
