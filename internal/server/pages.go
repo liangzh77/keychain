@@ -83,7 +83,8 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .form-grid > *, .settings-grid > *, .detail-form > * { min-width: 0; }
     .settings-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 220px) auto auto; gap: 10px; align-items: end; }
-    .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
+    .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: stretch; }
+    .resource-grid > .panel { min-height: 430px; height: 100%; }
     .detail-grid { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; gap: 10px; align-items: end; }
     .key-form { grid-template-columns: minmax(140px, 1fr) minmax(220px, 1.4fr) auto auto; }
