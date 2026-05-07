@@ -86,7 +86,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
     .detail-grid { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; gap: 10px; align-items: end; }
-    .key-form { grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.3fr) 80px auto auto; }
+    .key-form { grid-template-columns: minmax(140px, 1fr) minmax(220px, 1.4fr) auto auto; }
     .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
     label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: #45483f; }
     input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #d2c7b7; border-radius: 6px; font: inherit; background: #fffdf8; color: var(--text); }
@@ -108,6 +108,10 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .mini-link { display: block; min-height: 40px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: inherit; text-decoration: none; background: #fffdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mini-link:hover { background: #f6f1e8; }
     .mini-link.active { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+    .sortable-list { gap: 6px; }
+    .sortable-item { display: flex; align-items: center; cursor: grab; }
+    .sortable-item.dragging { opacity: .55; }
+    .sortable-item .mini-link { flex: 1; min-width: 0; }
     .mini-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
     .pane { display: grid; gap: 8px; min-width: 0; }
     .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #5f6259; font-size: 12px; font-weight: 800; letter-spacing: 0; }
@@ -271,9 +275,9 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               <summary>添加 Key</summary>
               <form class="form-grid key-form" method="post" action="/admin/keys">
                 <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                <input type="hidden" name="sortOrder" value="{{.Selected.NextKeySortOrder}}">
                 <label>别名<input name="alias" placeholder="openai-main-01" required></label>
                 <label>Key 明文<input name="secretValue" placeholder="sk-..." required></label>
-                <label>排序<input name="sortOrder" type="number" value="0"></label>
                 <span class="inline-checks">
                   <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
                   <label class="check"><input type="checkbox" name="isAvailable" value="1" checked> 可用</label>
@@ -286,13 +290,19 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             <div class="detail-grid" style="margin-top:12px">
               <div class="pane">
                 <div class="pane-title"><span>Key 列表</span></div>
-                <div class="compact-list scroll-list">
+                <form class="compact-list scroll-list sortable-list" method="post" action="/admin/keys/reorder" data-sortable-keys>
+                  <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
+                  <input type="hidden" name="keyId" value="{{.SelectedKeyID}}">
+                  <input type="hidden" name="modelId" value="{{.SelectedModelID}}">
                   {{range .Selected.Keys}}
-                    <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
-                      {{.Alias}}
-                    </a>
+                    <div class="sortable-item" draggable="true" data-sortable-item>
+                      <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" draggable="false" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
+                        {{.Alias}}
+                      </a>
+                      <input type="hidden" name="keyIds" value="{{.ID}}">
+                    </div>
                   {{end}}
-                </div>
+                </form>
               </div>
               {{if .SelectedKey}}
                 <div class="pane">
@@ -300,9 +310,9 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                   <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
                     <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                     <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
+                    <input type="hidden" name="sortOrder" value="{{.SelectedKey.SortOrder}}">
                     <label>别名<input name="alias" value="{{.SelectedKey.Alias}}" required></label>
                     <label>替换明文<input name="secretValue" placeholder="{{.SelectedKey.MaskedValue}}，留空不替换"></label>
-                    <label>排序<input name="sortOrder" type="number" value="{{.SelectedKey.SortOrder}}"></label>
                     <span class="inline-checks">
                       <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedKey.IsEnabled}}checked{{end}}> 启用</label>
                       <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
@@ -341,6 +351,39 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       form.addEventListener('change', sync);
       sync();
     });
+    document.querySelectorAll('[data-sortable-keys]').forEach((form) => {
+      let dragged = null;
+      let changed = false;
+
+      form.querySelectorAll('[data-sortable-item]').forEach((item) => {
+        item.addEventListener('dragstart', (event) => {
+          dragged = item;
+          changed = false;
+          item.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', item.querySelector('input[name="keyIds"]').value);
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          if (changed) form.requestSubmit();
+          dragged = null;
+        });
+      });
+
+      form.addEventListener('dragover', (event) => {
+        if (!dragged) return;
+        event.preventDefault();
+        const target = event.target.closest('[data-sortable-item]');
+        if (!target || target === dragged || !form.contains(target)) return;
+        const rect = target.getBoundingClientRect();
+        const after = event.clientY > rect.top + rect.height / 2;
+        form.insertBefore(dragged, after ? target.nextSibling : target);
+        changed = true;
+      });
+      form.addEventListener('drop', (event) => {
+        if (dragged) event.preventDefault();
+      });
+    });
   </script>
 </body>
 </html>`))
@@ -364,9 +407,10 @@ type providerNavItem struct {
 }
 
 type providerPanel struct {
-	Provider admin.Provider
-	Models   []admin.Model
-	Keys     []admin.APIKey
+	Provider         admin.Provider
+	Models           []admin.Model
+	Keys             []admin.APIKey
+	NextKeySortOrder int
 }
 
 func registerPageRoutes(mux *http.ServeMux, authService *auth.Service, store *admin.Store) {
@@ -387,6 +431,7 @@ func registerPageRoutes(mux *http.ServeMux, authService *auth.Service, store *ad
 		mux.HandleFunc("POST /admin/models/delete", formDeleteModelHandler(store))
 		mux.HandleFunc("POST /admin/keys", formCreateKeyHandler(store))
 		mux.HandleFunc("POST /admin/keys/update", formUpdateKeyHandler(store))
+		mux.HandleFunc("POST /admin/keys/reorder", formReorderKeysHandler(store))
 		mux.HandleFunc("POST /admin/keys/delete", formDeleteKeyHandler(store))
 	}
 }
@@ -630,6 +675,29 @@ func formUpdateKeyHandler(store *admin.Store) http.HandlerFunc {
 	}
 }
 
+func formReorderKeysHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectAdminError(w, r, "key 排序表单格式不正确")
+			return
+		}
+		providerID := r.FormValue("providerId")
+		if err := store.ReorderAPIKeys(r.Context(), providerID, r.Form["keyIds"]); err != nil {
+			redirectAdminError(w, r, "保存 key 排序失败："+err.Error())
+			return
+		}
+
+		target := "/admin?providerId=" + template.URLQueryEscaper(providerID)
+		if keyID := r.FormValue("keyId"); keyID != "" {
+			target += "&keyId=" + template.URLQueryEscaper(keyID)
+		}
+		if modelID := r.FormValue("modelId"); modelID != "" {
+			target += "&modelId=" + template.URLQueryEscaper(modelID)
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+	}
+}
+
 func formDeleteKeyHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -679,7 +747,13 @@ func loadAdminPageData(r *http.Request, store *admin.Store, data adminPageData) 
 			if data.SelectedModelID == "" && len(models) > 0 {
 				data.SelectedModelID = models[0].ID
 			}
-			selectedProvider := providerPanel{Provider: provider, Models: models, Keys: keys}
+			nextKeySortOrder := 1
+			for _, key := range keys {
+				if key.SortOrder >= nextKeySortOrder {
+					nextKeySortOrder = key.SortOrder + 1
+				}
+			}
+			selectedProvider := providerPanel{Provider: provider, Models: models, Keys: keys, NextKeySortOrder: nextKeySortOrder}
 			data.Selected = &selectedProvider
 			for _, key := range keys {
 				if key.ID == data.SelectedKeyID {

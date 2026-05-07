@@ -165,6 +165,69 @@ func TestUpdateProviderModelAndKey(t *testing.T) {
 	}
 }
 
+func TestReorderAPIKeys(t *testing.T) {
+	store := newTestStore(t)
+
+	provider, err := store.CreateProvider(context.Background(), CreateProviderInput{
+		Name:             "OpenAI",
+		Code:             "openai",
+		IsEnabled:        true,
+		RotationStrategy: "ROUND_ROBIN",
+	})
+	if err != nil {
+		t.Fatalf("CreateProvider() error = %v", err)
+	}
+	first, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "first",
+		SecretValue: "sk-first",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(first) error = %v", err)
+	}
+	second, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "second",
+		SecretValue: "sk-second",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   2,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(second) error = %v", err)
+	}
+	third, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "third",
+		SecretValue: "sk-third",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   3,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(third) error = %v", err)
+	}
+
+	if err := store.ReorderAPIKeys(context.Background(), provider.ID, []string{third.ID, first.ID, second.ID}); err != nil {
+		t.Fatalf("ReorderAPIKeys() error = %v", err)
+	}
+
+	keys, err := store.ListAPIKeys(context.Background(), provider.ID)
+	if err != nil {
+		t.Fatalf("ListAPIKeys() error = %v", err)
+	}
+	got := []string{keys[0].Alias, keys[1].Alias, keys[2].Alias}
+	want := []string{"third", "first", "second"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("key order = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestAccessDataAndPermissions(t *testing.T) {
 	store := newTestStore(t)
 

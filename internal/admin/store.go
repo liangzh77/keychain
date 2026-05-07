@@ -438,6 +438,64 @@ WHERE id = ?;
 	return key, nil
 }
 
+func (store *Store) ReorderAPIKeys(ctx context.Context, providerID string, keyIDs []string) error {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		return fmt.Errorf("provider id is required")
+	}
+	if len(keyIDs) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(keyIDs))
+	for i, id := range keyIDs {
+		keyIDs[i] = strings.TrimSpace(id)
+		if keyIDs[i] == "" {
+			return fmt.Errorf("key id is required")
+		}
+		if _, ok := seen[keyIDs[i]]; ok {
+			return fmt.Errorf("duplicate key id: %s", keyIDs[i])
+		}
+		seen[keyIDs[i]] = struct{}{}
+	}
+
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin reorder api keys: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+UPDATE api_keys
+SET sort_order = ?, updated_at = ?
+WHERE id = ? AND provider_id = ?;
+`)
+	if err != nil {
+		return fmt.Errorf("prepare reorder api keys: %w", err)
+	}
+	defer stmt.Close()
+
+	updatedAt := formatTime(store.now())
+	for i, id := range keyIDs {
+		result, err := stmt.ExecContext(ctx, i+1, updatedAt, id, providerID)
+		if err != nil {
+			return fmt.Errorf("reorder api key: %w", err)
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("reorder api key rows affected: %w", err)
+		}
+		if rows == 0 {
+			return fmt.Errorf("key not found for provider: %s", id)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit reorder api keys: %w", err)
+	}
+	return nil
+}
+
 func (store *Store) DeleteAPIKey(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
