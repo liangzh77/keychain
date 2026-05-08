@@ -430,25 +430,17 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 ### POST /api/runtime/users
 
-全量同步某个渠道的用户列表。
+提交或更新单个用户信息。
 
-外部系统新增、修改、删除用户时，都调用这一个接口。Keychain 会创建或更新请求列表中的用户，并自动删除该渠道下不在请求列表中的用户。
+如果同一渠道内已经存在同名用户，则更新；否则创建。
 
 请求：
 
 ```json
 {
   "channelId": "channel_001",
-  "users": [
-    {
-      "name": "Student 001",
-      "isEnabled": true
-    },
-    {
-      "name": "Student 002",
-      "isEnabled": false
-    }
-  ]
+  "name": "Student 001",
+  "isEnabled": true
 }
 ```
 
@@ -456,19 +448,22 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 ```json
 {
+  "id": "user_001",
   "channelId": "channel_001",
-  "users": [
-    {
-      "id": "user_001",
-      "name": "Student 001",
-      "isEnabled": true
-    },
-    {
-      "id": "user_002",
-      "name": "Student 002",
-      "isEnabled": false
-    }
-  ]
+  "name": "Student 001",
+  "isEnabled": true
+}
+```
+
+### DELETE /api/runtime/users/:id
+
+删除单个用户。
+
+响应：
+
+```json
+{
+  "deleted": true
 }
 ```
 

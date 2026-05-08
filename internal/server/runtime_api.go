@@ -16,18 +16,9 @@ type runtimeUserRequest struct {
 	IsEnabled *bool  `json:"isEnabled"`
 }
 
-type runtimeUsersSyncRequest struct {
-	ChannelID string               `json:"channelId"`
-	Users     []runtimeUserRequest `json:"users"`
-}
-
-type runtimeUsersSyncResponse struct {
-	ChannelID string                `json:"channelId"`
-	Users     []runtimeUserResponse `json:"users"`
-}
-
 type runtimeUserResponse struct {
 	ID        string `json:"id"`
+	ChannelID string `json:"channelId"`
 	Name      string `json:"name"`
 	IsEnabled bool   `json:"isEnabled"`
 }
@@ -70,7 +61,8 @@ func registerRuntimeAPIRoutes(mux *http.ServeMux, store *admin.Store, token stri
 	requireRuntime := func(next http.HandlerFunc) http.HandlerFunc {
 		return requireRuntimeToken(token, next)
 	}
-	mux.HandleFunc("POST /api/runtime/users", requireRuntime(runtimeSyncUsersHandler(store)))
+	mux.HandleFunc("POST /api/runtime/users", requireRuntime(runtimeUpsertUserHandler(store)))
+	mux.HandleFunc("DELETE /api/runtime/users/{id}", requireRuntime(runtimeDeleteUserHandler(store)))
 	mux.HandleFunc("GET /api/runtime/users/{id}/permissions", requireRuntime(runtimeUserPermissionsHandler(store)))
 	mux.HandleFunc("GET /api/runtime/providers", requireRuntime(runtimeProvidersHandler(store)))
 	mux.HandleFunc("GET /api/runtime/models", requireRuntime(runtimeModelsHandler(store)))
@@ -99,41 +91,43 @@ func requireRuntimeToken(token string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func runtimeSyncUsersHandler(store *admin.Store) http.HandlerFunc {
+func runtimeUpsertUserHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var request runtimeUsersSyncRequest
+		var request runtimeUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
 			return
 		}
-		users := make([]admin.SyncRuntimeUserInput, 0, len(request.Users))
-		for _, user := range request.Users {
-			isEnabled := true
-			if user.IsEnabled != nil {
-				isEnabled = *user.IsEnabled
-			}
-			users = append(users, admin.SyncRuntimeUserInput{
-				Name:      user.Name,
-				IsEnabled: isEnabled,
-			})
+		isEnabled := true
+		if request.IsEnabled != nil {
+			isEnabled = *request.IsEnabled
 		}
-		syncedUsers, err := store.SyncRuntimeUsers(r.Context(), admin.SyncRuntimeUsersInput{
+		user, err := store.UpsertRuntimeUser(r.Context(), admin.UpsertRuntimeUserInput{
 			ChannelID: request.ChannelID,
-			Users:     users,
+			Name:      request.Name,
+			IsEnabled: isEnabled,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "VALIDATION_ERROR", err.Error(), nil)
 			return
 		}
-		responseUsers := make([]runtimeUserResponse, 0, len(syncedUsers))
-		for _, user := range syncedUsers {
-			responseUsers = append(responseUsers, runtimeUserResponse{
-				ID:        user.ID,
-				Name:      user.DisplayName,
-				IsEnabled: user.IsEnabled,
-			})
+		web.WriteJSON(w, http.StatusOK, runtimeUserResponse{
+			ID:        user.ID,
+			ChannelID: user.ChannelID,
+			Name:      user.DisplayName,
+			IsEnabled: user.IsEnabled,
+		})
+	}
+}
+
+func runtimeDeleteUserHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := r.PathValue("id")
+		if err := store.DeleteUser(r.Context(), userID); err != nil {
+			web.WriteError(w, runtimeErrorStatus(err), "DELETE_USER_FAILED", err.Error(), nil)
+			return
 		}
-		web.WriteJSON(w, http.StatusOK, runtimeUsersSyncResponse{ChannelID: request.ChannelID, Users: responseUsers})
+		web.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 	}
 }
 

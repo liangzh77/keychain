@@ -247,8 +247,22 @@ func (store *Store) DeleteUser(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("user id is required")
 	}
-	if _, err := store.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?;`, id); err != nil {
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete user: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM failure_reports WHERE user_id = ?;`, id); err != nil {
+		return fmt.Errorf("delete user failure reports: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM dispatch_logs WHERE user_id = ?;`, id); err != nil {
+		return fmt.Errorf("delete user dispatch logs: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?;`, id); err != nil {
 		return fmt.Errorf("delete user: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete user: %w", err)
 	}
 	return nil
 }

@@ -28,26 +28,25 @@ func TestRuntimeAPIRequiresBearerToken(t *testing.T) {
 func TestRuntimeAPIFlow(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	userSync := postRuntime[runtimeUsersSyncResponse](t, handler, "/api/runtime/users", map[string]any{
+	userResponse := postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
 		"channelId": fixtures.ChannelID,
-		"users": []map[string]any{
-			{"name": "Student 001"},
-			{"name": "Student 002", "isEnabled": false},
-		},
+		"name":      "Student 001",
 	})
-	if len(userSync.Users) != 2 {
-		t.Fatalf("user sync response = %#v, want 2 users", userSync)
-	}
-	var userResponse runtimeUserResponse
-	for _, user := range userSync.Users {
-		if user.Name == "Student 001" {
-			userResponse = user
-			break
-		}
-	}
 	if userResponse.ID == "" || userResponse.Name != "Student 001" {
 		t.Fatalf("user response = %#v", userResponse)
 	}
+	updatedUser := postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
+		"channelId": fixtures.ChannelID,
+		"name":      "Student 001",
+		"isEnabled": false,
+	})
+	if updatedUser.ID != userResponse.ID || updatedUser.IsEnabled {
+		t.Fatalf("updated user = %#v, want same disabled user %s", updatedUser, userResponse.ID)
+	}
+	userResponse = postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
+		"channelId": fixtures.ChannelID,
+		"name":      "Student 001",
+	})
 
 	permissionsRequest := httptest.NewRequest(http.MethodGet, "/api/runtime/users/"+userResponse.ID+"/permissions", nil)
 	permissionsRequest.Header.Set("Authorization", "Bearer test-runtime-token")
@@ -81,6 +80,14 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	})
 	if !failure.Reported || failure.IsAvailable {
 		t.Fatalf("failure = %#v, want reported unavailable", failure)
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/runtime/users/"+userResponse.ID, nil)
+	deleteRequest.Header.Set("Authorization", "Bearer test-runtime-token")
+	deleteRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(deleteRecorder, deleteRequest)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, body=%s", deleteRecorder.Code, deleteRecorder.Body.String())
 	}
 }
 

@@ -344,28 +344,13 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateChannel() error = %v", err)
 	}
-	users, err := store.SyncRuntimeUsers(context.Background(), SyncRuntimeUsersInput{
+	user, err := store.UpsertRuntimeUser(context.Background(), UpsertRuntimeUserInput{
 		ChannelID: channel.ID,
-		Users: []SyncRuntimeUserInput{
-			{Name: "Student 001", IsEnabled: true},
-			{Name: "Student 002", IsEnabled: true},
-		},
+		Name:      "Student 001",
+		IsEnabled: true,
 	})
 	if err != nil {
-		t.Fatalf("SyncRuntimeUsers() error = %v", err)
-	}
-	if len(users) != 2 {
-		t.Fatalf("synced users length = %d, want 2", len(users))
-	}
-	var user User
-	for _, syncedUser := range users {
-		if syncedUser.DisplayName == "Student 001" {
-			user = syncedUser
-			break
-		}
-	}
-	if user.ID == "" {
-		t.Fatalf("synced users = %#v, want Student 001", users)
+		t.Fatalf("UpsertRuntimeUser() error = %v", err)
 	}
 	if err := store.SetChannelPermissionDefault(context.Background(), channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
@@ -412,24 +397,19 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 			t.Fatalf("failed key is still available: %#v", key)
 		}
 	}
-	users, err = store.SyncRuntimeUsers(context.Background(), SyncRuntimeUsersInput{
+	updatedUser, err := store.UpsertRuntimeUser(context.Background(), UpsertRuntimeUserInput{
 		ChannelID: channel.ID,
-		Users: []SyncRuntimeUserInput{
-			{Name: "Student 001", IsEnabled: false},
-		},
+		Name:      "Student 001",
+		IsEnabled: false,
 	})
 	if err != nil {
-		t.Fatalf("SyncRuntimeUsers() shrink error = %v", err)
+		t.Fatalf("UpsertRuntimeUser() update error = %v", err)
 	}
-	if len(users) != 1 || users[0].DisplayName != "Student 001" || users[0].IsEnabled {
-		t.Fatalf("synced users after shrink = %#v, want only disabled Student 001", users)
+	if updatedUser.ID != user.ID || updatedUser.IsEnabled {
+		t.Fatalf("updated user = %#v, want same disabled user %s", updatedUser, user.ID)
 	}
-	listedUsers, err := store.ListUsers(context.Background(), channel.ID)
-	if err != nil {
-		t.Fatalf("ListUsers() error = %v", err)
-	}
-	if len(listedUsers) != 1 {
-		t.Fatalf("listed users length = %d, want 1", len(listedUsers))
+	if err := store.DeleteUser(context.Background(), user.ID); err != nil {
+		t.Fatalf("DeleteUser() error = %v", err)
 	}
 }
 
