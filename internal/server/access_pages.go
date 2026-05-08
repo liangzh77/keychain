@@ -254,12 +254,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                     <span class="user-actions">
                       <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
                       <button class="secondary" type="submit" data-save disabled>保存用户</button>
-                      <button class="danger" type="submit" form="delete-user-{{.SelectedUser.ID}}">删除</button>
                     </span>
-                  </form>
-                  <form id="delete-user-{{.SelectedUser.ID}}" method="post" action="/admin/users/delete">
-                    <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-                    <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
                   </form>
                   {{if .UserPermissionProviders}}
                     <div class="split permission-zone">
@@ -391,7 +386,6 @@ func registerAccessRoutes(mux *http.ServeMux, authService *auth.Service, store *
 	mux.HandleFunc("POST /admin/channels/update", formUpdateChannelHandler(store))
 	mux.HandleFunc("POST /admin/channels/delete", formDeleteChannelHandler(store))
 	mux.HandleFunc("POST /admin/users/update", formUpdateUserHandler(store))
-	mux.HandleFunc("POST /admin/users/delete", formDeleteUserHandler(store))
 	mux.HandleFunc("POST /admin/channel-permissions", formSetChannelPermissionHandler(store))
 	mux.HandleFunc("POST /admin/user-permissions", formSetUserPermissionHandler(store))
 }
@@ -615,21 +609,6 @@ func formUpdateUserHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		redirectAccessChannel(w, r, channelID, userID)
-	}
-}
-
-func formDeleteUserHandler(store *admin.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			redirectAccessError(w, r, "用户表单格式不正确")
-			return
-		}
-		channelID := r.FormValue("channelId")
-		if err := store.DeleteUser(r.Context(), r.FormValue("userId")); err != nil {
-			redirectAccessError(w, r, "删除用户失败："+err.Error())
-			return
-		}
-		redirectAccessChannel(w, r, channelID, "")
 	}
 }
 

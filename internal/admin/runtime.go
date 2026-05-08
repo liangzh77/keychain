@@ -8,8 +8,12 @@ import (
 	"strings"
 )
 
-type UpsertRuntimeUserInput struct {
+type SyncRuntimeUsersInput struct {
 	ChannelID string
+	Users     []SyncRuntimeUserInput
+}
+
+type SyncRuntimeUserInput struct {
 	Name      string
 	IsEnabled bool
 }
@@ -55,33 +59,73 @@ type KeyFailureResult struct {
 	IsAvailable bool
 }
 
-func (store *Store) UpsertRuntimeUser(ctx context.Context, input UpsertRuntimeUserInput) (User, error) {
+func (store *Store) SyncRuntimeUsers(ctx context.Context, input SyncRuntimeUsersInput) ([]User, error) {
 	input.ChannelID = strings.TrimSpace(input.ChannelID)
-	input.Name = strings.TrimSpace(input.Name)
-	if input.Name == "" {
-		return User{}, fmt.Errorf("user name is required")
-	}
 	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
 	if err != nil {
-		return User{}, err
+		return nil, err
 	}
 
+	seen := make(map[string]struct{}, len(input.Users))
+	for i := range input.Users {
+		input.Users[i].Name = strings.TrimSpace(input.Users[i].Name)
+		if input.Users[i].Name == "" {
+			return nil, fmt.Errorf("user name is required")
+		}
+		if _, ok := seen[input.Users[i].Name]; ok {
+			return nil, fmt.Errorf("duplicate user name: %s", input.Users[i].Name)
+		}
+		seen[input.Users[i].Name] = struct{}{}
+	}
+
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin sync runtime users: %w", err)
+	}
+	defer tx.Rollback()
+
 	now := formatTime(store.now())
-	id := newID("user")
-	if _, err := store.db.ExecContext(ctx, `
+	for _, user := range input.Users {
+		if _, err := tx.ExecContext(ctx, `
 INSERT INTO users (id, channel_id, external_user_id, display_name, is_enabled, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(channel_id, external_user_id)
 DO UPDATE SET display_name = excluded.display_name, is_enabled = excluded.is_enabled, updated_at = excluded.updated_at;
-`, id, channel.ID, input.Name, input.Name, boolToInt(input.IsEnabled), now, now); err != nil {
-		return User{}, fmt.Errorf("upsert runtime user: %w", err)
+`, newID("user"), channel.ID, user.Name, user.Name, boolToInt(user.IsEnabled), now, now); err != nil {
+			return nil, fmt.Errorf("upsert runtime user: %w", err)
+		}
 	}
 
-	user, err := store.lookupUserByName(ctx, channel.ID, input.Name)
-	if err != nil {
-		return User{}, err
+	if len(input.Users) == 0 {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM users WHERE channel_id = ?;`, channel.ID); err != nil {
+			return nil, fmt.Errorf("delete missing runtime users: %w", err)
+		}
+	} else {
+		placeholders := make([]string, 0, len(input.Users))
+		args := make([]any, 0, len(input.Users)+1)
+		args = append(args, channel.ID)
+		for _, user := range input.Users {
+			placeholders = append(placeholders, "?")
+			args = append(args, user.Name)
+		}
+		query := fmt.Sprintf(`
+DELETE FROM users
+WHERE channel_id = ? AND external_user_id NOT IN (%s);
+`, strings.Join(placeholders, ", "))
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return nil, fmt.Errorf("delete missing runtime users: %w", err)
+		}
 	}
-	return user, nil
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit sync runtime users: %w", err)
+	}
+
+	users, err := store.ListUsers(ctx, channel.ID)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 func (store *Store) ListRuntimeProviders(ctx context.Context) ([]RuntimeProvider, error) {
@@ -453,20 +497,6 @@ WHERE id = ?;
 	}
 	provider.IsEnabled = true
 	return provider, nil
-}
-
-func (store *Store) lookupUserByName(ctx context.Context, channelID string, name string) (User, error) {
-	var user User
-	var isEnabled int
-	if err := store.db.QueryRowContext(ctx, `
-SELECT id, channel_id, external_user_id, display_name, is_enabled
-FROM users
-WHERE channel_id = ? AND external_user_id = ?;
-`, channelID, name).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
-		return User{}, wrapNotFound(err, "user not found")
-	}
-	user.IsEnabled = isEnabled == 1
-	return user, nil
 }
 
 func (store *Store) lookupEnabledUserAndChannel(ctx context.Context, userID string) (User, Channel, error) {

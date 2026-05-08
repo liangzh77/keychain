@@ -28,10 +28,23 @@ func TestRuntimeAPIRequiresBearerToken(t *testing.T) {
 func TestRuntimeAPIFlow(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	userResponse := postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
+	userSync := postRuntime[runtimeUsersSyncResponse](t, handler, "/api/runtime/users", map[string]any{
 		"channelId": fixtures.ChannelID,
-		"name":      "Student 001",
+		"users": []map[string]any{
+			{"name": "Student 001"},
+			{"name": "Student 002", "isEnabled": false},
+		},
 	})
+	if len(userSync.Users) != 2 {
+		t.Fatalf("user sync response = %#v, want 2 users", userSync)
+	}
+	var userResponse runtimeUserResponse
+	for _, user := range userSync.Users {
+		if user.Name == "Student 001" {
+			userResponse = user
+			break
+		}
+	}
 	if userResponse.ID == "" || userResponse.Name != "Student 001" {
 		t.Fatalf("user response = %#v", userResponse)
 	}
