@@ -82,7 +82,12 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
     .table-scroll { max-height: calc(100vh - 390px); overflow: auto; min-height: 260px; }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
     .tag.warn { background: #faead8; color: var(--warn); }
-    .failure { color: var(--danger); max-width: 260px; }
+	.failure { color: var(--danger); min-width: 220px; max-width: 360px; }
+	.failure-inline { display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 6px; }
+	.failure-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.copy-icon { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line-soft); border-radius: 6px; background: #fffdf8; color: var(--muted); }
+	.copy-icon:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+	.copy-icon svg { width: 15px; height: 15px; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff6df; color: #7a5a22; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; }
@@ -257,7 +262,17 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
                   <td>{{.ModelName}}</td>
                   <td>{{.KeyAlias}}</td>
                   <td><span class="tag {{if .IsFailed}}warn{{end}}">{{.StatusText}}</span></td>
-                  <td class="failure">{{.FailureText}}</td>
+                  <td class="failure">
+                    <div class="failure-inline" title="{{.FailureText}}">
+                      <span class="failure-text">{{.FailureText}}</span>
+                      {{if .CanCopyFailure}}<button class="copy-icon" type="button" data-copy-text="{{.FailureText}}" aria-label="复制失败信息" title="复制失败信息">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </button>{{end}}
+                    </div>
+                  </td>
                 </tr>
               {{else}}
                 <tr><td colspan="8" class="empty">没有匹配的调用记录。</td></tr>
@@ -348,6 +363,24 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
           const form = details.querySelector('form');
           if (form) form.reset();
           details.open = false;
+        });
+      });
+      document.querySelectorAll('[data-copy-text]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(button.dataset.copyText || '');
+            button.setAttribute('aria-label', '已复制');
+            window.setTimeout(() => button.setAttribute('aria-label', '复制失败信息'), 1200);
+          } catch (error) {
+            const fallback = document.createElement('textarea');
+            fallback.value = button.dataset.copyText || '';
+            fallback.style.position = 'fixed';
+            fallback.style.left = '-9999px';
+            document.body.appendChild(fallback);
+            fallback.select();
+            document.execCommand('copy');
+            fallback.remove();
+          }
         });
       });
       document.querySelectorAll('[data-history-chart]').forEach((chart) => {
@@ -470,10 +503,11 @@ type selectOption struct {
 
 type historyRowView struct {
 	admin.DispatchHistoryRow
-	CreatedAtText string
-	StatusText    string
-	IsFailed      bool
-	FailureText   string
+	CreatedAtText  string
+	StatusText     string
+	IsFailed       bool
+	FailureText    string
+	CanCopyFailure bool
 }
 
 type historyChartPoint struct {
@@ -719,6 +753,7 @@ func buildHistoryRows(rows []admin.DispatchHistoryRow) []historyRowView {
 			}
 			if len(parts) > 0 {
 				view.FailureText = strings.Join(parts, "：")
+				view.CanCopyFailure = true
 			}
 		}
 		views = append(views, view)

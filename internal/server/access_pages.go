@@ -431,6 +431,24 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         details.open = false;
       });
     });
+    document.querySelectorAll('[data-copy-text]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copyText || '');
+          button.setAttribute('aria-label', '已复制');
+          window.setTimeout(() => button.setAttribute('aria-label', '复制失败信息'), 1200);
+        } catch (error) {
+          const fallback = document.createElement('textarea');
+          fallback.value = button.dataset.copyText || '';
+          fallback.style.position = 'fixed';
+          fallback.style.left = '-9999px';
+          document.body.appendChild(fallback);
+          fallback.select();
+          document.execCommand('copy');
+          fallback.remove();
+        }
+      });
+    });
     document.querySelectorAll('[data-history-chart]').forEach((chart) => {
       const points = Array.from(chart.querySelectorAll('[data-chart-point]')).map((point) => ({
         node: point,
