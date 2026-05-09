@@ -13,3 +13,4 @@ bin/
 dist/
 tmp/
 .playwright-mcp/
+docs/runtime_api_token.md
