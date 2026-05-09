@@ -69,9 +69,9 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     details.add-panel[open] .add-cancel { display: inline-flex; align-items: center; justify-content: center; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .form-grid > *, .detail-form > *, .perm-form > * { min-width: 0; }
-    .channel-form { grid-template-columns: minmax(180px, 1fr) minmax(160px, 200px) minmax(190px, 240px) auto auto; }
+    .channel-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .user-form { grid-template-columns: minmax(0, 1fr) auto auto; }
-    .authorization-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
+    .access-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
     .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
@@ -87,9 +87,9 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .pane-title span { margin-right: auto; margin-left: 8px; }
     .perm-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: end; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+    .channel-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; padding-top: 2px; }
     .detail-form.user-form { grid-template-columns: minmax(0, 1fr) auto; }
     .detail-form.user-form .actions { grid-column: 1 / -1; }
-    .half-card { width: min(720px, 100%); }
     .user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
     .permission-zone { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
     .model-permission-form { display: grid; gap: 10px; }
@@ -102,7 +102,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
     .tag.off { background: #e9e4db; color: #746f66; }
-    @media (max-width: 1320px) { .authorization-grid { grid-template-columns: 1fr; } .channel-form, .perm-form, .detail-form.user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions, .user-actions { justify-content: flex-start; } }
+    @media (max-width: 1320px) { .access-grid { grid-template-columns: 1fr; } .channel-form, .perm-form, .detail-form.user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions, .user-actions { justify-content: flex-start; } }
     @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; } .actions, .user-actions { justify-content: flex-start; } }
     @media (max-width: 760px) { .split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
@@ -165,42 +165,42 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       </div>
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
-        <div class="stack">
-          <section class="panel content half-card">
-            <div class="topline">
-              <div>
-                <h2>{{.Selected.Channel.Name}}</h2>
-                <p class="muted">{{.Selected.Channel.DefaultPermissionMode}} · {{.Selected.Channel.UserManagementMode}}</p>
+        <div class="access-grid">
+          <div class="stack">
+            <section class="panel content">
+              <div class="topline">
+                <div>
+                  <h2>{{.Selected.Channel.Name}}</h2>
+                  <p class="muted">{{.Selected.Channel.DefaultPermissionMode}} · {{.Selected.Channel.UserManagementMode}}</p>
+                </div>
+                {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
               </div>
-              {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
-            </div>
-            <form class="form-grid channel-form" method="post" action="/admin/channels/update" data-dirty-form>
-              <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-              <input type="hidden" name="code" value="{{.Selected.Channel.Code}}">
-              <label>名称<input name="name" value="{{.Selected.Channel.Name}}" required></label>
-              <label>默认权限
-                <select name="defaultPermissionMode">
-                  <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
-                  <option value="ALLOW" {{if eq .Selected.Channel.DefaultPermissionMode "ALLOW"}}selected{{end}}>默认打开</option>
-                </select>
-              </label>
-              <label>用户系统
-                <select name="userManagementMode">
-                  <option value="EXTERNAL_MANAGED" {{if eq .Selected.Channel.UserManagementMode "EXTERNAL_MANAGED"}}selected{{end}}>外部自有用户系统</option>
-                  <option value="KEYCHAIN_HOSTED" {{if eq .Selected.Channel.UserManagementMode "KEYCHAIN_HOSTED"}}selected{{end}}>Keychain 托管用户系统</option>
-                </select>
-              </label>
-              <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Channel.IsEnabled}}checked{{end}}> 启用</label>
-              <span class="actions">
-                <button class="secondary" type="submit" data-save disabled>保存渠道</button>
-                <button class="danger" type="submit" form="delete-channel-{{.Selected.Channel.ID}}">删除</button>
-              </span>
-            </form>
-            <form id="delete-channel-{{.Selected.Channel.ID}}" method="post" action="/admin/channels/delete">
-              <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
-            </form>
-          </section>
-          <div class="authorization-grid">
+              <form class="form-grid channel-form" method="post" action="/admin/channels/update" data-dirty-form>
+                <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                <input type="hidden" name="code" value="{{.Selected.Channel.Code}}">
+                <label>名称<input name="name" value="{{.Selected.Channel.Name}}" required></label>
+                <label>默认权限
+                  <select name="defaultPermissionMode">
+                    <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
+                    <option value="ALLOW" {{if eq .Selected.Channel.DefaultPermissionMode "ALLOW"}}selected{{end}}>默认打开</option>
+                  </select>
+                </label>
+                <label>用户系统
+                  <select name="userManagementMode">
+                    <option value="EXTERNAL_MANAGED" {{if eq .Selected.Channel.UserManagementMode "EXTERNAL_MANAGED"}}selected{{end}}>外部自有用户系统</option>
+                    <option value="KEYCHAIN_HOSTED" {{if eq .Selected.Channel.UserManagementMode "KEYCHAIN_HOSTED"}}selected{{end}}>Keychain 托管用户系统</option>
+                  </select>
+                </label>
+                <span class="channel-actions">
+                  <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Channel.IsEnabled}}checked{{end}}> 启用</label>
+                  <button class="secondary" type="submit" data-save disabled>保存渠道</button>
+                  <button class="danger" type="submit" form="delete-channel-{{.Selected.Channel.ID}}">删除</button>
+                </span>
+              </form>
+              <form id="delete-channel-{{.Selected.Channel.ID}}" method="post" action="/admin/channels/delete">
+                <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+              </form>
+            </section>
           <section class="panel content">
             <div class="section-title">
               <div>
@@ -236,6 +236,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </div>
             {{else}}<div class="empty">还没有 provider/model 可授权。</div>{{end}}
           </section>
+          </div>
           <section class="panel content">
             <div class="section-title">
               <div>
@@ -337,7 +338,6 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </div>
             </div>
           </section>
-          </div>
         </div>
       {{else}}
         <section class="panel empty">先添加或选择一个渠道。</section>
