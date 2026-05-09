@@ -346,12 +346,15 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       const currentApp = document.querySelector('.app');
       const nextBrand = parsed.querySelector('.brand');
       const currentBrand = document.querySelector('.brand');
+      const nextStyle = parsed.querySelector('style');
+      const currentStyle = document.querySelector('style');
       if (!nextApp || !currentApp) {
         window.location.href = url || window.location.href;
         return;
       }
       const currentAside = currentApp.querySelector('aside');
       const asideScrollTop = currentAside ? currentAside.scrollTop : 0;
+      if (nextStyle && currentStyle) currentStyle.replaceWith(nextStyle);
       currentApp.replaceWith(nextApp);
       if (nextBrand && currentBrand) currentBrand.replaceWith(nextBrand);
       if (parsed.title) document.title = parsed.title;
