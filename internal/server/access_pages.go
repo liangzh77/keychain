@@ -144,7 +144,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
           </form>
         </details>
         <section>
-          <h2>Channels</h2>
+          <h2>渠道列表</h2>
           <div class="channel-list">
             {{range .Channels}}
               <a class="channel-link {{if .IsActive}}active{{end}}" href="/admin/access?channelId={{.Channel.ID}}">
