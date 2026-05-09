@@ -531,12 +531,22 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `, newID("failure"), dispatchLogID, channelID, userID, providerID, modelID, keyID, keyAlias, errorCode, errorMessage, now); err != nil {
 		return KeyFailureResult{}, fmt.Errorf("insert key failure report: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `
+	keyIsAvailable := true
+	if shouldMarkKeyUnavailable(errorCode, errorMessage) {
+		if _, err := tx.ExecContext(ctx, `
 UPDATE api_keys
 SET is_available = 0, failure_count = failure_count + 1, last_failed_at = ?, updated_at = ?
 WHERE id = ?;
 `, now, now, keyID); err != nil {
-		return KeyFailureResult{}, fmt.Errorf("mark key unavailable: %w", err)
+			return KeyFailureResult{}, fmt.Errorf("mark key unavailable: %w", err)
+		}
+		keyIsAvailable = false
+	} else {
+		var isAvailable int
+		if err := tx.QueryRowContext(ctx, `SELECT is_available FROM api_keys WHERE id = ?;`, keyID).Scan(&isAvailable); err != nil {
+			return KeyFailureResult{}, fmt.Errorf("read key availability: %w", err)
+		}
+		keyIsAvailable = isAvailable == 1
 	}
 	if _, err := tx.ExecContext(ctx, `
 UPDATE dispatch_logs
@@ -548,7 +558,28 @@ WHERE id = ?;
 	if err := tx.Commit(); err != nil {
 		return KeyFailureResult{}, fmt.Errorf("commit key failure report: %w", err)
 	}
-	return KeyFailureResult{KeyID: keyID, KeyAlias: keyAlias, IsAvailable: false}, nil
+	return KeyFailureResult{KeyID: keyID, KeyAlias: keyAlias, IsAvailable: keyIsAvailable}, nil
+}
+
+func shouldMarkKeyUnavailable(errorCode string, errorMessage string) bool {
+	normalizedCode := strings.ToLower(strings.TrimSpace(errorCode))
+	normalizedMessage := strings.ToLower(strings.TrimSpace(errorMessage))
+	if normalizedCode == "provider_error" {
+		transientQueueSignals := []string{
+			"任务队列已满",
+			"队列已满",
+			"queue full",
+			"queue is full",
+			"task queue is full",
+			"queue busy",
+		}
+		for _, signal := range transientQueueSignals {
+			if strings.Contains(normalizedMessage, signal) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type runtimeKeyCandidate struct {

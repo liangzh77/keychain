@@ -462,6 +462,94 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	}
 }
 
+func TestQueueFullFailureDoesNotDisableKey(t *testing.T) {
+	store := newTestStore(t)
+	ctx := context.Background()
+
+	provider, err := store.CreateProvider(ctx, CreateProviderInput{
+		Name:             "RunningHub",
+		Code:             "runninghub",
+		IsEnabled:        true,
+		RotationStrategy: "ROUND_ROBIN",
+	})
+	if err != nil {
+		t.Fatalf("CreateProvider() error = %v", err)
+	}
+	model, err := store.CreateModel(ctx, CreateModelInput{
+		ProviderID: provider.ID,
+		Name:       "InfiniteTalk",
+		Code:       "infinitetalk",
+		IsEnabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("CreateModel() error = %v", err)
+	}
+	key, err := store.CreateAPIKey(ctx, CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "18501079950",
+		SecretValue: "sk-runninghub",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey() error = %v", err)
+	}
+	channel, err := store.CreateChannel(ctx, CreateChannelInput{
+		Name:                  "ai_video_maker",
+		Code:                  "ai-video-maker",
+		DefaultPermissionMode: "DENY",
+		UserManagementMode:    "EXTERNAL_MANAGED",
+		IsEnabled:             true,
+	})
+	if err != nil {
+		t.Fatalf("CreateChannel() error = %v", err)
+	}
+	user, err := store.UpsertRuntimeExternalUser(ctx, UpsertRuntimeExternalUserInput{
+		ChannelName:    channel.Name,
+		ExternalUserID: "luxi",
+		Name:           "luxi",
+		IsEnabled:      true,
+	})
+	if err != nil {
+		t.Fatalf("UpsertRuntimeExternalUser() error = %v", err)
+	}
+	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+
+	dispatch, err := store.DispatchRuntimeKey(ctx, DispatchKeyInput{
+		ChannelName: channel.Name,
+		UserID:      user.ID,
+		ProviderID:  provider.ID,
+		ModelID:     model.ID,
+	})
+	if err != nil {
+		t.Fatalf("DispatchRuntimeKey() error = %v", err)
+	}
+	report, err := store.ReportRuntimeKeyFailure(ctx, dispatch.DispatchLogID, "provider_error", "Error: [portrait_animator] 任务队列已满，请稍后重试")
+	if err != nil {
+		t.Fatalf("ReportRuntimeKeyFailure() error = %v", err)
+	}
+	if !report.IsAvailable {
+		t.Fatalf("queue full report disabled key: %#v", report)
+	}
+	keys, err := store.ListAPIKeys(ctx, provider.ID)
+	if err != nil {
+		t.Fatalf("ListAPIKeys() error = %v", err)
+	}
+	if len(keys) != 1 || keys[0].ID != key.ID || !keys[0].IsAvailable || keys[0].FailureCount != 0 {
+		t.Fatalf("key after queue full report = %#v", keys)
+	}
+	history, _, err := store.ListDispatchHistory(ctx, DispatchHistoryFilter{Status: "FAILED", KeyID: key.ID, PageSize: 10})
+	if err != nil {
+		t.Fatalf("ListDispatchHistory() error = %v", err)
+	}
+	if len(history) != 1 || history[0].FailureErrorMessage == nil {
+		t.Fatalf("history after queue full report = %#v", history)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 
