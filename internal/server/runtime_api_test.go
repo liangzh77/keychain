@@ -45,6 +45,9 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	userResponse = runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
 		"name": "Student 001",
 	})
+	if err := fixtures.Store.SetUserKeyPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.KeyID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission() error = %v", err)
+	}
 
 	permissionsRequest := httptest.NewRequest(http.MethodGet, "/api/runtime/users/"+userResponse.ID+"/permissions", nil)
 	permissionsRequest.Header.Set("Authorization", "Bearer test-runtime-token")
@@ -204,12 +207,14 @@ func TestRuntimeHostedUsersRejectExternalManagedChannels(t *testing.T) {
 }
 
 type runtimeFixtures struct {
+	Store             *admin.Store
 	ChannelID         string
 	ChannelName       string
 	HostedChannelID   string
 	HostedChannelName string
 	ProviderID        string
 	ModelID           string
+	KeyID             string
 }
 
 func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
@@ -249,14 +254,15 @@ func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
 	if err != nil {
 		t.Fatalf("CreateModel() error = %v", err)
 	}
-	if _, err := store.CreateAPIKey(context.Background(), admin.CreateAPIKeyInput{
+	apiKey, err := store.CreateAPIKey(context.Background(), admin.CreateAPIKeyInput{
 		ProviderID:  provider.ID,
 		Alias:       "runtime-main",
 		SecretValue: "sk-runtime",
 		IsEnabled:   true,
 		IsAvailable: true,
 		SortOrder:   1,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("CreateAPIKey() error = %v", err)
 	}
 	channel, err := store.CreateChannel(context.Background(), admin.CreateChannelInput{
@@ -285,11 +291,13 @@ func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
 
 	handler := NewRouter(Options{AdminStore: store, RuntimeToken: "test-runtime-token"})
 	return handler, runtimeFixtures{
+		Store:             store,
 		ChannelID:         channel.ID,
 		ChannelName:       channel.Name,
 		HostedChannelID:   hostedChannel.ID,
 		HostedChannelName: hostedChannel.Name,
 		ProviderID:        provider.ID,
 		ModelID:           model.ID,
+		KeyID:             apiKey.ID,
 	}
 }

@@ -387,7 +387,7 @@ func (store *Store) ListUserKeyPermissionRows(ctx context.Context, userID string
 	}
 	rows, err := store.db.QueryContext(ctx, `
 SELECT providers.id, providers.name, api_keys.id, api_keys.alias,
-  COALESCE(user_key_permissions.allowed, 1) AS allowed,
+  COALESCE(user_key_permissions.allowed, 0) AS allowed,
   CASE WHEN user_key_permissions.id IS NULL THEN 0 ELSE 1 END AS has_explicit
 FROM api_keys
 JOIN providers ON providers.id = api_keys.provider_id

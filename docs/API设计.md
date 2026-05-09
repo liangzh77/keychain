@@ -393,7 +393,7 @@ POST /api/bulk/provider-permissions
 }
 ```
 
-未设置用户 key 权限时，运行时分发默认允许该 provider 下所有可用 key。设置后，分发只会从允许的 key 中选择。
+运行时分发只会从显式授权给该用户的 key 中选择。新用户默认不授权任何 key。
 
 批量设置渠道默认权限：
 
@@ -636,7 +636,7 @@ GET /api/runtime/models?providerId=provider_001
 分发 key 时会同时检查：
 
 - 用户是否允许调用该 provider/model。
-- 用户在该 provider 下是否允许使用候选 key。没有显式 key 授权记录时默认允许。
+- 用户在该 provider 下是否允许使用候选 key。没有显式 key 授权记录时默认拒绝。
 
 ### POST /api/runtime/dispatches/:dispatchLogId/failure
 

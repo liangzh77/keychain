@@ -305,7 +305,7 @@ func TestAccessDataAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListUserKeyPermissionRows() error = %v", err)
 	}
-	if len(keyRows) != 1 || keyRows[0].KeyID != apiKey.ID || !keyRows[0].Allowed || keyRows[0].HasExplicit {
+	if len(keyRows) != 1 || keyRows[0].KeyID != apiKey.ID || keyRows[0].Allowed || keyRows[0].HasExplicit {
 		t.Fatalf("default user key permission rows = %#v", keyRows)
 	}
 	if err := store.SetUserKeyPermission(context.Background(), users[0].ID, provider.ID, apiKey.ID, false); err != nil {
@@ -384,6 +384,12 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	}
 	if err := store.SetChannelPermissionDefault(context.Background(), channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+	if err := store.SetUserKeyPermission(context.Background(), user.ID, provider.ID, first.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission(first allow) error = %v", err)
+	}
+	if err := store.SetUserKeyPermission(context.Background(), user.ID, provider.ID, second.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission(second allow) error = %v", err)
 	}
 
 	dispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
@@ -517,6 +523,9 @@ func TestQueueFullFailureDoesNotDisableKey(t *testing.T) {
 	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
 	}
+	if err := store.SetUserKeyPermission(ctx, user.ID, provider.ID, key.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission() error = %v", err)
+	}
 
 	dispatch, err := store.DispatchRuntimeKey(ctx, DispatchKeyInput{
 		ChannelName: channel.Name,
@@ -604,6 +613,9 @@ func TestTaskNotFoundFailureDoesNotDisableKey(t *testing.T) {
 	}
 	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+	if err := store.SetUserKeyPermission(ctx, user.ID, provider.ID, key.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission() error = %v", err)
 	}
 
 	dispatch, err := store.DispatchRuntimeKey(ctx, DispatchKeyInput{

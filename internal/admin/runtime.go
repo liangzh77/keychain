@@ -595,7 +595,7 @@ SELECT api_keys.id, api_keys.alias, api_keys.secret_value
 FROM api_keys
 LEFT JOIN user_key_permissions ON user_key_permissions.user_id = ? AND user_key_permissions.provider_id = api_keys.provider_id AND user_key_permissions.key_id = api_keys.id
 WHERE api_keys.provider_id = ? AND api_keys.is_enabled = 1 AND api_keys.is_available = 1
-  AND COALESCE(user_key_permissions.allowed, 1) = 1
+  AND COALESCE(user_key_permissions.allowed, 0) = 1
 ORDER BY api_keys.sort_order ASC, api_keys.created_at DESC, api_keys.alias ASC;
 `, userID, providerID)
 	if err != nil {
