@@ -17,7 +17,7 @@ type runtimeUserRequest struct {
 
 type runtimeUserResponse struct {
 	ID             string `json:"id"`
-	ChannelID      string `json:"channelId"`
+	ChannelName    string `json:"channelName"`
 	ExternalUserID string `json:"externalUserId"`
 	Name           string `json:"name"`
 	IsEnabled      bool   `json:"isEnabled"`
@@ -44,10 +44,10 @@ type runtimePermissionsResponse struct {
 }
 
 type dispatchKeyRequest struct {
-	ChannelID  string `json:"channelId"`
-	UserID     string `json:"userId"`
-	ProviderID string `json:"providerId"`
-	ModelID    string `json:"modelId"`
+	ChannelName string `json:"channelName"`
+	UserID      string `json:"userId"`
+	ProviderID  string `json:"providerId"`
+	ModelID     string `json:"modelId"`
 }
 
 type dispatchKeyResponse struct {
@@ -75,12 +75,12 @@ func registerRuntimeAPIRoutes(mux *http.ServeMux, store *admin.Store, token stri
 	requireRuntime := func(next http.HandlerFunc) http.HandlerFunc {
 		return requireRuntimeToken(token, next)
 	}
-	mux.HandleFunc("PUT /api/runtime/channels/{channelId}/external-users/{externalUserId}", requireRuntime(runtimeUpsertExternalUserHandler(store)))
-	mux.HandleFunc("DELETE /api/runtime/channels/{channelId}/external-users/{externalUserId}", requireRuntime(runtimeDeleteExternalUserHandler(store)))
-	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/register", requireRuntime(runtimeRegisterHostedUserHandler(store)))
-	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/login", requireRuntime(runtimeLoginHostedUserHandler(store)))
-	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/{userId}/reset-password", requireRuntime(runtimeResetHostedUserPasswordHandler(store)))
-	mux.HandleFunc("DELETE /api/runtime/channels/{channelId}/hosted-users/{userId}", requireRuntime(runtimeDeleteHostedUserHandler(store)))
+	mux.HandleFunc("PUT /api/runtime/channels/{channelName}/external-users/{externalUserId}", requireRuntime(runtimeUpsertExternalUserHandler(store)))
+	mux.HandleFunc("DELETE /api/runtime/channels/{channelName}/external-users/{externalUserId}", requireRuntime(runtimeDeleteExternalUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelName}/hosted-users/register", requireRuntime(runtimeRegisterHostedUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelName}/hosted-users/login", requireRuntime(runtimeLoginHostedUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelName}/hosted-users/{userId}/reset-password", requireRuntime(runtimeResetHostedUserPasswordHandler(store)))
+	mux.HandleFunc("DELETE /api/runtime/channels/{channelName}/hosted-users/{userId}", requireRuntime(runtimeDeleteHostedUserHandler(store)))
 	mux.HandleFunc("GET /api/runtime/users/{id}/permissions", requireRuntime(runtimeUserPermissionsHandler(store)))
 	mux.HandleFunc("GET /api/runtime/providers", requireRuntime(runtimeProvidersHandler(store)))
 	mux.HandleFunc("GET /api/runtime/models", requireRuntime(runtimeModelsHandler(store)))
@@ -120,8 +120,9 @@ func runtimeUpsertExternalUserHandler(store *admin.Store) http.HandlerFunc {
 		if request.IsEnabled != nil {
 			isEnabled = *request.IsEnabled
 		}
+		channelName := r.PathValue("channelName")
 		user, err := store.UpsertRuntimeExternalUser(r.Context(), admin.UpsertRuntimeExternalUserInput{
-			ChannelID:      r.PathValue("channelId"),
+			ChannelName:    channelName,
 			ExternalUserID: r.PathValue("externalUserId"),
 			Name:           request.Name,
 			IsEnabled:      isEnabled,
@@ -130,19 +131,13 @@ func runtimeUpsertExternalUserHandler(store *admin.Store) http.HandlerFunc {
 			web.WriteError(w, runtimeErrorStatus(err), "VALIDATION_ERROR", err.Error(), nil)
 			return
 		}
-		web.WriteJSON(w, http.StatusOK, runtimeUserResponse{
-			ID:             user.ID,
-			ChannelID:      user.ChannelID,
-			ExternalUserID: user.ExternalUserID,
-			Name:           user.DisplayName,
-			IsEnabled:      user.IsEnabled,
-		})
+		writeRuntimeUser(w, user, channelName)
 	}
 }
 
 func runtimeDeleteExternalUserHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := store.DeleteRuntimeExternalUser(r.Context(), r.PathValue("channelId"), r.PathValue("externalUserId")); err != nil {
+		if err := store.DeleteRuntimeExternalUser(r.Context(), r.PathValue("channelName"), r.PathValue("externalUserId")); err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "DELETE_USER_FAILED", err.Error(), nil)
 			return
 		}
@@ -157,17 +152,18 @@ func runtimeRegisterHostedUserHandler(store *admin.Store) http.HandlerFunc {
 			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
 			return
 		}
+		channelName := r.PathValue("channelName")
 		user, err := store.RegisterRuntimeHostedUser(r.Context(), admin.RegisterRuntimeHostedUserInput{
-			ChannelID: r.PathValue("channelId"),
-			Username:  request.Username,
-			Name:      request.Name,
-			Password:  request.Password,
+			ChannelName: channelName,
+			Username:    request.Username,
+			Name:        request.Name,
+			Password:    request.Password,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "REGISTER_HOSTED_USER_FAILED", err.Error(), nil)
 			return
 		}
-		writeRuntimeUser(w, user)
+		writeRuntimeUser(w, user, channelName)
 	}
 }
 
@@ -178,16 +174,17 @@ func runtimeLoginHostedUserHandler(store *admin.Store) http.HandlerFunc {
 			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
 			return
 		}
+		channelName := r.PathValue("channelName")
 		user, err := store.LoginRuntimeHostedUser(r.Context(), admin.LoginRuntimeHostedUserInput{
-			ChannelID: r.PathValue("channelId"),
-			Username:  request.Username,
-			Password:  request.Password,
+			ChannelName: channelName,
+			Username:    request.Username,
+			Password:    request.Password,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "LOGIN_HOSTED_USER_FAILED", err.Error(), nil)
 			return
 		}
-		writeRuntimeUser(w, user)
+		writeRuntimeUser(w, user, channelName)
 	}
 }
 
@@ -198,22 +195,23 @@ func runtimeResetHostedUserPasswordHandler(store *admin.Store) http.HandlerFunc 
 			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
 			return
 		}
+		channelName := r.PathValue("channelName")
 		user, err := store.ResetRuntimeHostedUserPassword(r.Context(), admin.ResetRuntimeHostedUserPasswordInput{
-			ChannelID: r.PathValue("channelId"),
-			UserID:    r.PathValue("userId"),
-			Password:  request.Password,
+			ChannelName: channelName,
+			UserID:      r.PathValue("userId"),
+			Password:    request.Password,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "RESET_HOSTED_USER_PASSWORD_FAILED", err.Error(), nil)
 			return
 		}
-		writeRuntimeUser(w, user)
+		writeRuntimeUser(w, user, channelName)
 	}
 }
 
 func runtimeDeleteHostedUserHandler(store *admin.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := store.DeleteRuntimeHostedUser(r.Context(), r.PathValue("channelId"), r.PathValue("userId")); err != nil {
+		if err := store.DeleteRuntimeHostedUser(r.Context(), r.PathValue("channelName"), r.PathValue("userId")); err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "DELETE_HOSTED_USER_FAILED", err.Error(), nil)
 			return
 		}
@@ -221,10 +219,10 @@ func runtimeDeleteHostedUserHandler(store *admin.Store) http.HandlerFunc {
 	}
 }
 
-func writeRuntimeUser(w http.ResponseWriter, user admin.User) {
+func writeRuntimeUser(w http.ResponseWriter, user admin.User, channelName string) {
 	web.WriteJSON(w, http.StatusOK, runtimeUserResponse{
 		ID:             user.ID,
-		ChannelID:      user.ChannelID,
+		ChannelName:    channelName,
 		ExternalUserID: user.ExternalUserID,
 		Name:           user.DisplayName,
 		IsEnabled:      user.IsEnabled,
@@ -273,10 +271,10 @@ func runtimeDispatchKeyHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		result, err := store.DispatchRuntimeKey(r.Context(), admin.DispatchKeyInput{
-			ChannelID:  request.ChannelID,
-			UserID:     request.UserID,
-			ProviderID: request.ProviderID,
-			ModelID:    request.ModelID,
+			ChannelName: request.ChannelName,
+			UserID:      request.UserID,
+			ProviderID:  request.ProviderID,
+			ModelID:     request.ModelID,
 		})
 		if err != nil {
 			web.WriteError(w, runtimeErrorStatus(err), "DISPATCH_KEY_FAILED", err.Error(), nil)

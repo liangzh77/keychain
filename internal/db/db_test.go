@@ -59,8 +59,8 @@ func TestMigrateCreatesCoreSchemaAndIsIdempotent(t *testing.T) {
 	if err := database.SQL().QueryRowContext(context.Background(), "SELECT COUNT(*) FROM schema_migrations").Scan(&appliedCount); err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if appliedCount != 3 {
-		t.Fatalf("applied migrations = %d, want 3", appliedCount)
+	if appliedCount != 4 {
+		t.Fatalf("applied migrations = %d, want 4", appliedCount)
 	}
 }
 

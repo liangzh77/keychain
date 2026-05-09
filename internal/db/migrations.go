@@ -176,6 +176,7 @@ CREATE TABLE admin_sessions (
 CREATE INDEX idx_models_provider_id ON models(provider_id);
 CREATE INDEX idx_api_keys_provider_id ON api_keys(provider_id);
 CREATE INDEX idx_api_keys_provider_available ON api_keys(provider_id, is_enabled, is_available, sort_order);
+CREATE UNIQUE INDEX idx_channels_name_unique ON channels(name);
 CREATE INDEX idx_users_channel_id ON users(channel_id);
 CREATE INDEX idx_users_channel_external ON users(channel_id, external_user_id);
 CREATE INDEX idx_hosted_user_credentials_user ON hosted_user_credentials(user_id);
@@ -225,6 +226,13 @@ CREATE TABLE IF NOT EXISTS hosted_user_credentials (
 );
 
 CREATE INDEX IF NOT EXISTS idx_hosted_user_credentials_user ON hosted_user_credentials(user_id);
+`,
+	},
+	{
+		Version: 4,
+		Name:    "add_unique_channel_names",
+		SQL: `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_name_unique ON channels(name);
 `,
 	},
 }

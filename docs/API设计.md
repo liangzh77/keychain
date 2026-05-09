@@ -269,6 +269,7 @@ Channel 字段：
 ```
 
 说明：`code` 是内部字段，后台不展示。创建时由服务端自动生成。
+`name` 是外部 Runtime API 使用的渠道标识，必须唯一。
 
 `defaultPermissionMode` 可选：
 
@@ -449,11 +450,12 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 该 token 从 `.env` 读取。
 
-### PUT /api/runtime/channels/:channelId/external-users/:externalUserId
+### PUT /api/runtime/channels/:channelName/external-users/:externalUserId
 
 提交或更新外部系统自有用户。
 
 该接口只适用于 `userManagementMode = EXTERNAL_MANAGED` 的渠道。如果同一渠道内已经存在相同 `externalUserId` 的用户，则更新；否则创建。
+`:channelName` 为渠道名称，由 Keychain 管理后台维护，必须唯一。
 
 请求：
 
@@ -469,14 +471,14 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ```json
 {
   "id": "user_001",
-  "channelId": "channel_001",
+  "channelName": "ai_video_maker",
   "externalUserId": "student_001",
   "name": "Student 001",
   "isEnabled": true
 }
 ```
 
-### DELETE /api/runtime/channels/:channelId/external-users/:externalUserId
+### DELETE /api/runtime/channels/:channelName/external-users/:externalUserId
 
 删除外部系统自有用户。
 
@@ -488,9 +490,10 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 }
 ```
 
-### POST /api/runtime/channels/:channelId/hosted-users/register
+### POST /api/runtime/channels/:channelName/hosted-users/register
 
 注册 Keychain 托管用户。该接口只适用于 `userManagementMode = KEYCHAIN_HOSTED` 的渠道。
+`:channelName` 为渠道名称，由 Keychain 管理后台维护，必须唯一。
 
 请求：
 
@@ -507,7 +510,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ```json
 {
   "id": "user_001",
-  "channelId": "channel_001",
+  "channelName": "ai_video_maker",
   "externalUserId": "student_001",
   "name": "Student 001",
   "isEnabled": true
@@ -516,7 +519,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 `externalUserId` 等于托管用户的 `username`。同一渠道内用户名重复时返回 `409`。
 
-### POST /api/runtime/channels/:channelId/hosted-users/login
+### POST /api/runtime/channels/:channelName/hosted-users/login
 
 校验 Keychain 托管用户用户名和密码。登录成功返回用户信息；Keychain 不签发终端用户 session token。
 
@@ -534,7 +537,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ```json
 {
   "id": "user_001",
-  "channelId": "channel_001",
+  "channelName": "ai_video_maker",
   "externalUserId": "student_001",
   "name": "Student 001",
   "isEnabled": true
@@ -543,7 +546,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 用户名或密码错误时返回 `401`。
 
-### POST /api/runtime/channels/:channelId/hosted-users/:userId/reset-password
+### POST /api/runtime/channels/:channelName/hosted-users/:userId/reset-password
 
 重置 Keychain 托管用户密码。
 
@@ -557,7 +560,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 响应同登录接口。
 
-### DELETE /api/runtime/channels/:channelId/hosted-users/:userId
+### DELETE /api/runtime/channels/:channelName/hosted-users/:userId
 
 注销 Keychain 托管用户。
 
@@ -610,7 +613,7 @@ GET /api/runtime/models?providerId=provider_001
 
 ```json
 {
-  "channelId": "channel_001",
+  "channelName": "ai_video_maker",
   "userId": "user_001",
   "providerId": "provider_001",
   "modelId": "model_001"

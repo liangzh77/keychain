@@ -374,7 +374,7 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		t.Fatalf("CreateChannel() error = %v", err)
 	}
 	user, err := store.UpsertRuntimeExternalUser(context.Background(), UpsertRuntimeExternalUserInput{
-		ChannelID:      channel.ID,
+		ChannelName:    channel.Name,
 		ExternalUserID: "student-001",
 		Name:           "Student 001",
 		IsEnabled:      true,
@@ -387,10 +387,10 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	}
 
 	dispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
-		ChannelID:  channel.ID,
-		UserID:     user.ID,
-		ProviderID: provider.ID,
-		ModelID:    model.ID,
+		ChannelName: channel.Name,
+		UserID:      user.ID,
+		ProviderID:  provider.ID,
+		ModelID:     model.ID,
 	})
 	if err != nil {
 		t.Fatalf("DispatchRuntimeKey() error = %v", err)
@@ -399,10 +399,10 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		t.Fatalf("first dispatch = %#v, want first key", dispatch)
 	}
 	secondDispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
-		ChannelID:  channel.ID,
-		UserID:     user.ID,
-		ProviderID: provider.ID,
-		ModelID:    model.ID,
+		ChannelName: channel.Name,
+		UserID:      user.ID,
+		ProviderID:  provider.ID,
+		ModelID:     model.ID,
 	})
 	if err != nil {
 		t.Fatalf("DispatchRuntimeKey() second error = %v", err)
@@ -417,10 +417,10 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		t.Fatalf("SetUserKeyPermission(second) error = %v", err)
 	}
 	filteredDispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
-		ChannelID:  channel.ID,
-		UserID:     user.ID,
-		ProviderID: provider.ID,
-		ModelID:    model.ID,
+		ChannelName: channel.Name,
+		UserID:      user.ID,
+		ProviderID:  provider.ID,
+		ModelID:     model.ID,
 	})
 	if err != nil {
 		t.Fatalf("DispatchRuntimeKey() filtered error = %v", err)
@@ -446,7 +446,7 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		}
 	}
 	updatedUser, err := store.UpsertRuntimeExternalUser(context.Background(), UpsertRuntimeExternalUserInput{
-		ChannelID:      channel.ID,
+		ChannelName:    channel.Name,
 		ExternalUserID: "student-001",
 		Name:           "Student 001",
 		IsEnabled:      false,

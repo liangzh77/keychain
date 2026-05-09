@@ -11,29 +11,29 @@ import (
 )
 
 type UpsertRuntimeExternalUserInput struct {
-	ChannelID      string
+	ChannelName    string
 	ExternalUserID string
 	Name           string
 	IsEnabled      bool
 }
 
 type RegisterRuntimeHostedUserInput struct {
-	ChannelID string
-	Username  string
-	Name      string
-	Password  string
+	ChannelName string
+	Username    string
+	Name        string
+	Password    string
 }
 
 type LoginRuntimeHostedUserInput struct {
-	ChannelID string
-	Username  string
-	Password  string
+	ChannelName string
+	Username    string
+	Password    string
 }
 
 type ResetRuntimeHostedUserPasswordInput struct {
-	ChannelID string
-	UserID    string
-	Password  string
+	ChannelName string
+	UserID      string
+	Password    string
 }
 
 type RuntimeProvider struct {
@@ -56,10 +56,10 @@ type EffectivePermission struct {
 }
 
 type DispatchKeyInput struct {
-	ChannelID  string
-	UserID     string
-	ProviderID string
-	ModelID    string
+	ChannelName string
+	UserID      string
+	ProviderID  string
+	ModelID     string
 }
 
 type DispatchKeyResult struct {
@@ -78,7 +78,7 @@ type KeyFailureResult struct {
 }
 
 func (store *Store) UpsertRuntimeExternalUser(ctx context.Context, input UpsertRuntimeExternalUserInput) (User, error) {
-	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ChannelName = strings.TrimSpace(input.ChannelName)
 	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
 	input.Name = strings.TrimSpace(input.Name)
 	if input.ExternalUserID == "" {
@@ -87,7 +87,7 @@ func (store *Store) UpsertRuntimeExternalUser(ctx context.Context, input UpsertR
 	if input.Name == "" {
 		input.Name = input.ExternalUserID
 	}
-	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelName)
 	if err != nil {
 		return User{}, err
 	}
@@ -112,8 +112,8 @@ DO UPDATE SET display_name = excluded.display_name, is_enabled = excluded.is_ena
 	return user, nil
 }
 
-func (store *Store) DeleteRuntimeExternalUser(ctx context.Context, channelID string, externalUserID string) error {
-	channel, err := store.lookupEnabledChannel(ctx, channelID)
+func (store *Store) DeleteRuntimeExternalUser(ctx context.Context, channelName string, externalUserID string) error {
+	channel, err := store.lookupEnabledChannel(ctx, channelName)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func (store *Store) DeleteRuntimeExternalUser(ctx context.Context, channelID str
 }
 
 func (store *Store) RegisterRuntimeHostedUser(ctx context.Context, input RegisterRuntimeHostedUserInput) (User, error) {
-	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ChannelName = strings.TrimSpace(input.ChannelName)
 	input.Username = strings.TrimSpace(input.Username)
 	input.Name = strings.TrimSpace(input.Name)
 	if input.Username == "" {
@@ -140,7 +140,7 @@ func (store *Store) RegisterRuntimeHostedUser(ctx context.Context, input Registe
 	if strings.TrimSpace(input.Password) == "" {
 		return User{}, fmt.Errorf("password is required")
 	}
-	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelName)
 	if err != nil {
 		return User{}, err
 	}
@@ -188,12 +188,12 @@ VALUES (?, ?, ?, ?);
 }
 
 func (store *Store) LoginRuntimeHostedUser(ctx context.Context, input LoginRuntimeHostedUserInput) (User, error) {
-	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ChannelName = strings.TrimSpace(input.ChannelName)
 	input.Username = strings.TrimSpace(input.Username)
 	if input.Username == "" || strings.TrimSpace(input.Password) == "" {
 		return User{}, fmt.Errorf("username and password are required")
 	}
-	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelName)
 	if err != nil {
 		return User{}, err
 	}
@@ -226,7 +226,7 @@ WHERE users.channel_id = ? AND users.external_user_id = ?;
 }
 
 func (store *Store) ResetRuntimeHostedUserPassword(ctx context.Context, input ResetRuntimeHostedUserPasswordInput) (User, error) {
-	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ChannelName = strings.TrimSpace(input.ChannelName)
 	input.UserID = strings.TrimSpace(input.UserID)
 	if input.UserID == "" {
 		return User{}, fmt.Errorf("user id is required")
@@ -234,7 +234,7 @@ func (store *Store) ResetRuntimeHostedUserPassword(ctx context.Context, input Re
 	if strings.TrimSpace(input.Password) == "" {
 		return User{}, fmt.Errorf("password is required")
 	}
-	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelName)
 	if err != nil {
 		return User{}, err
 	}
@@ -266,8 +266,8 @@ WHERE user_id = ?;
 	return user, nil
 }
 
-func (store *Store) DeleteRuntimeHostedUser(ctx context.Context, channelID string, userID string) error {
-	channel, err := store.lookupEnabledChannel(ctx, channelID)
+func (store *Store) DeleteRuntimeHostedUser(ctx context.Context, channelName string, userID string) error {
+	channel, err := store.lookupEnabledChannel(ctx, channelName)
 	if err != nil {
 		return err
 	}
@@ -379,12 +379,12 @@ ORDER BY providers.name ASC, models.name ASC;
 }
 
 func (store *Store) DispatchRuntimeKey(ctx context.Context, input DispatchKeyInput) (DispatchKeyResult, error) {
-	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ChannelName = strings.TrimSpace(input.ChannelName)
 	input.UserID = strings.TrimSpace(input.UserID)
 	input.ProviderID = strings.TrimSpace(input.ProviderID)
 	input.ModelID = strings.TrimSpace(input.ModelID)
-	if input.ChannelID == "" || input.UserID == "" || input.ProviderID == "" || input.ModelID == "" {
-		return DispatchKeyResult{}, fmt.Errorf("channel id, user id, provider id and model id are required")
+	if input.ChannelName == "" || input.UserID == "" || input.ProviderID == "" || input.ModelID == "" {
+		return DispatchKeyResult{}, fmt.Errorf("channel name, user id, provider id and model id are required")
 	}
 
 	tx, err := store.db.BeginTx(ctx, nil)
@@ -393,13 +393,13 @@ func (store *Store) DispatchRuntimeKey(ctx context.Context, input DispatchKeyInp
 	}
 	defer tx.Rollback()
 
-	var channelName, defaultMode string
+	var channelID, channelName, defaultMode string
 	var channelEnabled int
 	if err := tx.QueryRowContext(ctx, `
-SELECT name, default_permission_mode, is_enabled
+SELECT id, name, default_permission_mode, is_enabled
 FROM channels
-WHERE id = ?;
-`, input.ChannelID).Scan(&channelName, &defaultMode, &channelEnabled); err != nil {
+WHERE name = ?;
+`, input.ChannelName).Scan(&channelID, &channelName, &defaultMode, &channelEnabled); err != nil {
 		return DispatchKeyResult{}, wrapNotFound(err, "channel not found")
 	}
 	if channelEnabled != 1 {
@@ -415,7 +415,7 @@ WHERE id = ?;
 `, input.UserID).Scan(&userChannelID, &userEnabled); err != nil {
 		return DispatchKeyResult{}, wrapNotFound(err, "user not found")
 	}
-	if userChannelID != input.ChannelID {
+	if userChannelID != channelID {
 		return DispatchKeyResult{}, fmt.Errorf("user does not belong to channel")
 	}
 	if userEnabled != 1 {
@@ -452,7 +452,7 @@ WHERE id = ?;
 		return DispatchKeyResult{}, fmt.Errorf("model is disabled")
 	}
 
-	allowed, err := effectivePermissionInTx(ctx, tx, input.ChannelID, input.UserID, input.ProviderID, input.ModelID, defaultMode)
+	allowed, err := effectivePermissionInTx(ctx, tx, channelID, input.UserID, input.ProviderID, input.ModelID, defaultMode)
 	if err != nil {
 		return DispatchKeyResult{}, err
 	}
@@ -484,7 +484,7 @@ WHERE id = ?;
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO dispatch_logs (id, channel_id, user_id, provider_id, model_id, key_id, key_alias_snapshot, status, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, 'DISPATCHED', ?);
-`, dispatchLogID, input.ChannelID, input.UserID, input.ProviderID, input.ModelID, selected.ID, selected.Alias, now); err != nil {
+`, dispatchLogID, channelID, input.UserID, input.ProviderID, input.ModelID, selected.ID, selected.Alias, now); err != nil {
 		return DispatchKeyResult{}, fmt.Errorf("insert dispatch log: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -613,16 +613,16 @@ WHERE channel_id = ? AND provider_id = ? AND model_id = ?;
 	return defaultMode == "ALLOW", nil
 }
 
-func (store *Store) lookupEnabledChannel(ctx context.Context, channelID string) (Channel, error) {
-	channelID = strings.TrimSpace(channelID)
-	if channelID == "" {
-		return Channel{}, fmt.Errorf("channel id is required")
+func (store *Store) lookupEnabledChannel(ctx context.Context, channelName string) (Channel, error) {
+	channelName = strings.TrimSpace(channelName)
+	if channelName == "" {
+		return Channel{}, fmt.Errorf("channel name is required")
 	}
 	row := store.db.QueryRowContext(ctx, `
 SELECT id, name, code, default_permission_mode, user_management_mode, is_enabled
 FROM channels
-WHERE id = ?;
-`, channelID)
+WHERE name = ?;
+`, channelName)
 	var channel Channel
 	var isEnabled int
 	if err := row.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &channel.UserManagementMode, &isEnabled); err != nil {

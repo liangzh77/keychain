@@ -28,11 +28,11 @@ func TestRuntimeAPIRequiresBearerToken(t *testing.T) {
 func TestRuntimeAPIFlow(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	userPath := "/api/runtime/channels/" + fixtures.ChannelID + "/external-users/student-001"
+	userPath := "/api/runtime/channels/" + fixtures.ChannelName + "/external-users/student-001"
 	userResponse := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
 		"name": "Student 001",
 	})
-	if userResponse.ID == "" || userResponse.ExternalUserID != "student-001" || userResponse.Name != "Student 001" {
+	if userResponse.ID == "" || userResponse.ChannelName != fixtures.ChannelName || userResponse.ExternalUserID != "student-001" || userResponse.Name != "Student 001" {
 		t.Fatalf("user response = %#v", userResponse)
 	}
 	updatedUser := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
@@ -62,10 +62,10 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	}
 
 	dispatch := postRuntime[dispatchKeyResponse](t, handler, "/api/runtime/dispatches", map[string]any{
-		"channelId":  fixtures.ChannelID,
-		"userId":     userResponse.ID,
-		"providerId": fixtures.ProviderID,
-		"modelId":    fixtures.ModelID,
+		"channelName": fixtures.ChannelName,
+		"userId":      userResponse.ID,
+		"providerId":  fixtures.ProviderID,
+		"modelId":     fixtures.ModelID,
 	})
 	if dispatch.Key != "sk-runtime" || dispatch.KeyAlias != "runtime-main" {
 		t.Fatalf("dispatch = %#v, want runtime key", dispatch)
@@ -117,7 +117,7 @@ func runtimeRequest[T any](t *testing.T, handler http.Handler, method string, pa
 func TestRuntimeExternalUsersRejectHostedChannels(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	request := httptest.NewRequest(http.MethodPut, "/api/runtime/channels/"+fixtures.HostedChannelID+"/external-users/student-001", bytes.NewReader([]byte(`{"name":"Student 001"}`)))
+	request := httptest.NewRequest(http.MethodPut, "/api/runtime/channels/"+fixtures.HostedChannelName+"/external-users/student-001", bytes.NewReader([]byte(`{"name":"Student 001"}`)))
 	request.Header.Set("Authorization", "Bearer test-runtime-token")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -130,13 +130,13 @@ func TestRuntimeExternalUsersRejectHostedChannels(t *testing.T) {
 func TestRuntimeHostedUserFlow(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	registerPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/register"
+	registerPath := "/api/runtime/channels/" + fixtures.HostedChannelName + "/hosted-users/register"
 	user := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, registerPath, map[string]any{
 		"username": "hosted-student-001",
 		"name":     "托管学生 001",
 		"password": "first-password",
 	})
-	if user.ID == "" || user.ExternalUserID != "hosted-student-001" || user.Name != "托管学生 001" || !user.IsEnabled {
+	if user.ID == "" || user.ChannelName != fixtures.HostedChannelName || user.ExternalUserID != "hosted-student-001" || user.Name != "托管学生 001" || !user.IsEnabled {
 		t.Fatalf("hosted register response = %#v", user)
 	}
 
@@ -148,7 +148,7 @@ func TestRuntimeHostedUserFlow(t *testing.T) {
 		t.Fatalf("duplicate register status = %d, body=%s", conflictResponse.Code, conflictResponse.Body.String())
 	}
 
-	loginPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/login"
+	loginPath := "/api/runtime/channels/" + fixtures.HostedChannelName + "/hosted-users/login"
 	login := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, loginPath, map[string]any{
 		"username": "hosted-student-001",
 		"password": "first-password",
@@ -165,7 +165,7 @@ func TestRuntimeHostedUserFlow(t *testing.T) {
 		t.Fatalf("bad login status = %d, body=%s", badLoginResponse.Code, badLoginResponse.Body.String())
 	}
 
-	resetPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/" + user.ID + "/reset-password"
+	resetPath := "/api/runtime/channels/" + fixtures.HostedChannelName + "/hosted-users/" + user.ID + "/reset-password"
 	reset := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, resetPath, map[string]any{
 		"password": "second-password",
 	})
@@ -181,7 +181,7 @@ func TestRuntimeHostedUserFlow(t *testing.T) {
 		t.Fatalf("new login user id = %s, want %s", newLogin.ID, user.ID)
 	}
 
-	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/runtime/channels/"+fixtures.HostedChannelID+"/hosted-users/"+user.ID, nil)
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/runtime/channels/"+fixtures.HostedChannelName+"/hosted-users/"+user.ID, nil)
 	deleteRequest.Header.Set("Authorization", "Bearer test-runtime-token")
 	deleteResponse := httptest.NewRecorder()
 	handler.ServeHTTP(deleteResponse, deleteRequest)
@@ -193,7 +193,7 @@ func TestRuntimeHostedUserFlow(t *testing.T) {
 func TestRuntimeHostedUsersRejectExternalManagedChannels(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	request := httptest.NewRequest(http.MethodPost, "/api/runtime/channels/"+fixtures.ChannelID+"/hosted-users/register", bytes.NewReader([]byte(`{"username":"student-001","password":"password"}`)))
+	request := httptest.NewRequest(http.MethodPost, "/api/runtime/channels/"+fixtures.ChannelName+"/hosted-users/register", bytes.NewReader([]byte(`{"username":"student-001","password":"password"}`)))
 	request.Header.Set("Authorization", "Bearer test-runtime-token")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -204,10 +204,12 @@ func TestRuntimeHostedUsersRejectExternalManagedChannels(t *testing.T) {
 }
 
 type runtimeFixtures struct {
-	ChannelID       string
-	HostedChannelID string
-	ProviderID      string
-	ModelID         string
+	ChannelID         string
+	ChannelName       string
+	HostedChannelID   string
+	HostedChannelName string
+	ProviderID        string
+	ModelID           string
 }
 
 func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
@@ -282,5 +284,12 @@ func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
 	}
 
 	handler := NewRouter(Options{AdminStore: store, RuntimeToken: "test-runtime-token"})
-	return handler, runtimeFixtures{ChannelID: channel.ID, HostedChannelID: hostedChannel.ID, ProviderID: provider.ID, ModelID: model.ID}
+	return handler, runtimeFixtures{
+		ChannelID:         channel.ID,
+		ChannelName:       channel.Name,
+		HostedChannelID:   hostedChannel.ID,
+		HostedChannelName: hostedChannel.Name,
+		ProviderID:        provider.ID,
+		ModelID:           model.ID,
+	}
 }
