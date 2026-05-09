@@ -75,6 +75,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+    .section-title h2 { font-size: 18px; line-height: 1.2; font-weight: 700; }
+    .section-title p { font-size: 12px; line-height: 1.2; }
     .section-title > details.add-panel[open] { grid-column: 1 / -1; }
     .section-title > details.add-panel[open] > summary { width: max-content; min-width: 132px; margin-left: auto; margin-right: 34px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
