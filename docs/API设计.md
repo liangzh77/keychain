@@ -252,6 +252,7 @@ Channel 字段：
   "id": "channel_001",
   "name": "School A",
   "defaultPermissionMode": "DENY",
+  "userManagementMode": "EXTERNAL_MANAGED",
   "isEnabled": true
 }
 ```
@@ -262,6 +263,7 @@ Channel 字段：
 {
   "name": "School A",
   "defaultPermissionMode": "DENY",
+  "userManagementMode": "EXTERNAL_MANAGED",
   "isEnabled": true
 }
 ```
@@ -272,6 +274,11 @@ Channel 字段：
 
 - `ALLOW`
 - `DENY`
+
+`userManagementMode` 可选：
+
+- `EXTERNAL_MANAGED`：外部系统自有用户系统，通过 Runtime API 同步用户。
+- `KEYCHAIN_HOSTED`：Keychain 托管用户系统，后续由 Keychain 提供注册、登录、重置密码和注销能力。
 
 ### Users
 
@@ -428,17 +435,16 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 该 token 从 `.env` 读取。
 
-### POST /api/runtime/users
+### PUT /api/runtime/channels/:channelId/external-users/:externalUserId
 
-提交或更新单个用户信息。
+提交或更新外部系统自有用户。
 
-如果同一渠道内已经存在同名用户，则更新；否则创建。
+该接口只适用于 `userManagementMode = EXTERNAL_MANAGED` 的渠道。如果同一渠道内已经存在相同 `externalUserId` 的用户，则更新；否则创建。
 
 请求：
 
 ```json
 {
-  "channelId": "channel_001",
   "name": "Student 001",
   "isEnabled": true
 }
@@ -450,14 +456,15 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 {
   "id": "user_001",
   "channelId": "channel_001",
+  "externalUserId": "student_001",
   "name": "Student 001",
   "isEnabled": true
 }
 ```
 
-### DELETE /api/runtime/users/:id
+### DELETE /api/runtime/channels/:channelId/external-users/:externalUserId
 
-删除单个用户。
+删除外部系统自有用户。
 
 响应：
 
@@ -500,7 +507,7 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 GET /api/runtime/models?providerId=provider_001
 ```
 
-### POST /api/runtime/dispatch-key
+### POST /api/runtime/dispatches
 
 申请一次调用。
 
@@ -528,7 +535,7 @@ GET /api/runtime/models?providerId=provider_001
 }
 ```
 
-### POST /api/runtime/key-failures
+### POST /api/runtime/dispatches/:dispatchLogId/failure
 
 上报调用失败。
 
@@ -536,7 +543,6 @@ GET /api/runtime/models?providerId=provider_001
 
 ```json
 {
-  "dispatchLogId": "dispatch_001",
   "errorCode": "rate_limit",
   "errorMessage": "provider returned 429"
 }

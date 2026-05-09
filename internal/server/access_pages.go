@@ -68,7 +68,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     details.add-panel[open] .add-cancel { display: inline-flex; align-items: center; justify-content: center; }
     .form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .form-grid > *, .detail-form > *, .perm-form > * { min-width: 0; }
-    .channel-form { grid-template-columns: minmax(180px, 1fr) minmax(160px, 200px) auto auto; }
+    .channel-form { grid-template-columns: minmax(180px, 1fr) minmax(160px, 200px) minmax(190px, 240px) auto auto; }
     .user-form { grid-template-columns: minmax(0, 1fr) auto auto; }
     .authorization-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
     .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
@@ -130,6 +130,12 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                 <option value="ALLOW">默认打开</option>
               </select>
             </label>
+            <label>用户系统
+              <select name="userManagementMode">
+                <option value="EXTERNAL_MANAGED">外部自有用户系统</option>
+                <option value="KEYCHAIN_HOSTED">Keychain 托管用户系统</option>
+              </select>
+            </label>
             <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用渠道</label>
             <button type="submit">添加渠道</button>
           </form>
@@ -140,7 +146,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             {{range .Channels}}
               <a class="channel-link {{if .IsActive}}active{{end}}" href="/admin/access?channelId={{.Channel.ID}}">
                 <div class="meta-row"><strong>{{.Channel.Name}}</strong>{{if .Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</div>
-                <div class="meta-row"><span class="muted small">{{.UserCount}} users · {{.Channel.DefaultPermissionMode}}</span></div>
+                <div class="meta-row"><span class="muted small">{{.UserCount}} users · {{.Channel.DefaultPermissionMode}} · {{.Channel.UserManagementMode}}</span></div>
               </a>
             {{else}}
               <div class="panel empty">还没有渠道。</div>
@@ -163,7 +169,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <div class="topline">
               <div>
                 <h2>{{.Selected.Channel.Name}}</h2>
-                <p class="muted">{{.Selected.Channel.DefaultPermissionMode}}</p>
+                <p class="muted">{{.Selected.Channel.DefaultPermissionMode}} · {{.Selected.Channel.UserManagementMode}}</p>
               </div>
               {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
             </div>
@@ -175,6 +181,12 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                 <select name="defaultPermissionMode">
                   <option value="DENY" {{if eq .Selected.Channel.DefaultPermissionMode "DENY"}}selected{{end}}>默认关闭</option>
                   <option value="ALLOW" {{if eq .Selected.Channel.DefaultPermissionMode "ALLOW"}}selected{{end}}>默认打开</option>
+                </select>
+              </label>
+              <label>用户系统
+                <select name="userManagementMode">
+                  <option value="EXTERNAL_MANAGED" {{if eq .Selected.Channel.UserManagementMode "EXTERNAL_MANAGED"}}selected{{end}}>外部自有用户系统</option>
+                  <option value="KEYCHAIN_HOSTED" {{if eq .Selected.Channel.UserManagementMode "KEYCHAIN_HOSTED"}}selected{{end}}>Keychain 托管用户系统</option>
                 </select>
               </label>
               <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Channel.IsEnabled}}checked{{end}}> 启用</label>
@@ -539,6 +551,7 @@ func formCreateChannelHandler(store *admin.Store) http.HandlerFunc {
 			Name:                  r.FormValue("name"),
 			Code:                  code,
 			DefaultPermissionMode: r.FormValue("defaultPermissionMode"),
+			UserManagementMode:    r.FormValue("userManagementMode"),
 			IsEnabled:             r.FormValue("isEnabled") == "1",
 		})
 		if err != nil {
@@ -564,6 +577,7 @@ func formUpdateChannelHandler(store *admin.Store) http.HandlerFunc {
 			Name:                  r.FormValue("name"),
 			Code:                  code,
 			DefaultPermissionMode: r.FormValue("defaultPermissionMode"),
+			UserManagementMode:    r.FormValue("userManagementMode"),
 			IsEnabled:             r.FormValue("isEnabled") == "1",
 		}); err != nil {
 			redirectAccessError(w, r, "保存渠道失败："+err.Error())

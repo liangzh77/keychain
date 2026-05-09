@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-type UpsertRuntimeUserInput struct {
-	ChannelID string
-	Name      string
-	IsEnabled bool
+type UpsertRuntimeExternalUserInput struct {
+	ChannelID      string
+	ExternalUserID string
+	Name           string
+	IsEnabled      bool
 }
 
 type RuntimeProvider struct {
@@ -55,15 +56,22 @@ type KeyFailureResult struct {
 	IsAvailable bool
 }
 
-func (store *Store) UpsertRuntimeUser(ctx context.Context, input UpsertRuntimeUserInput) (User, error) {
+func (store *Store) UpsertRuntimeExternalUser(ctx context.Context, input UpsertRuntimeExternalUserInput) (User, error) {
 	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.ExternalUserID = strings.TrimSpace(input.ExternalUserID)
 	input.Name = strings.TrimSpace(input.Name)
+	if input.ExternalUserID == "" {
+		return User{}, fmt.Errorf("external user id is required")
+	}
 	if input.Name == "" {
-		return User{}, fmt.Errorf("user name is required")
+		input.Name = input.ExternalUserID
 	}
 	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
 	if err != nil {
 		return User{}, err
+	}
+	if channel.UserManagementMode != "EXTERNAL_MANAGED" {
+		return User{}, fmt.Errorf("channel does not accept external users")
 	}
 
 	now := formatTime(store.now())
@@ -73,14 +81,29 @@ INSERT INTO users (id, channel_id, external_user_id, display_name, is_enabled, c
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(channel_id, external_user_id)
 DO UPDATE SET display_name = excluded.display_name, is_enabled = excluded.is_enabled, updated_at = excluded.updated_at;
-`, id, channel.ID, input.Name, input.Name, boolToInt(input.IsEnabled), now, now); err != nil {
-		return User{}, fmt.Errorf("upsert runtime user: %w", err)
+`, id, channel.ID, input.ExternalUserID, input.Name, boolToInt(input.IsEnabled), now, now); err != nil {
+		return User{}, fmt.Errorf("upsert runtime external user: %w", err)
 	}
-	user, err := store.lookupUserByName(ctx, channel.ID, input.Name)
+	user, err := store.lookupUserByExternalID(ctx, channel.ID, input.ExternalUserID)
 	if err != nil {
 		return User{}, err
 	}
 	return user, nil
+}
+
+func (store *Store) DeleteRuntimeExternalUser(ctx context.Context, channelID string, externalUserID string) error {
+	channel, err := store.lookupEnabledChannel(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	if channel.UserManagementMode != "EXTERNAL_MANAGED" {
+		return fmt.Errorf("channel does not accept external users")
+	}
+	user, err := store.lookupUserByExternalID(ctx, channel.ID, strings.TrimSpace(externalUserID))
+	if err != nil {
+		return err
+	}
+	return store.DeleteUser(ctx, user.ID)
 }
 
 func (store *Store) ListRuntimeProviders(ctx context.Context) ([]RuntimeProvider, error) {
@@ -416,13 +439,13 @@ func (store *Store) lookupEnabledChannel(ctx context.Context, channelID string) 
 		return Channel{}, fmt.Errorf("channel id is required")
 	}
 	row := store.db.QueryRowContext(ctx, `
-SELECT id, name, code, default_permission_mode, is_enabled
+SELECT id, name, code, default_permission_mode, user_management_mode, is_enabled
 FROM channels
 WHERE id = ?;
 `, channelID)
 	var channel Channel
 	var isEnabled int
-	if err := row.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &isEnabled); err != nil {
+	if err := row.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &channel.UserManagementMode, &isEnabled); err != nil {
 		return Channel{}, wrapNotFound(err, "channel not found")
 	}
 	if isEnabled != 1 {
@@ -454,14 +477,14 @@ WHERE id = ?;
 	return provider, nil
 }
 
-func (store *Store) lookupUserByName(ctx context.Context, channelID string, name string) (User, error) {
+func (store *Store) lookupUserByExternalID(ctx context.Context, channelID string, externalUserID string) (User, error) {
 	var user User
 	var isEnabled int
 	if err := store.db.QueryRowContext(ctx, `
 SELECT id, channel_id, external_user_id, display_name, is_enabled
 FROM users
 WHERE channel_id = ? AND external_user_id = ?;
-`, channelID, name).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
+`, channelID, strings.TrimSpace(externalUserID)).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
 		return User{}, wrapNotFound(err, "user not found")
 	}
 	user.IsEnabled = isEnabled == 1
@@ -478,11 +501,11 @@ func (store *Store) lookupEnabledUserAndChannel(ctx context.Context, userID stri
 	var userEnabled, channelEnabled int
 	if err := store.db.QueryRowContext(ctx, `
 SELECT users.id, users.channel_id, users.external_user_id, users.display_name, users.is_enabled,
-  channels.id, channels.name, channels.code, channels.default_permission_mode, channels.is_enabled
+  channels.id, channels.name, channels.code, channels.default_permission_mode, channels.user_management_mode, channels.is_enabled
 FROM users
 JOIN channels ON channels.id = users.channel_id
 WHERE users.id = ?;
-`, userID).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &userEnabled, &channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &channelEnabled); err != nil {
+`, userID).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &userEnabled, &channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &channel.UserManagementMode, &channelEnabled); err != nil {
 		return User{}, Channel{}, wrapNotFound(err, "user not found")
 	}
 	if userEnabled != 1 {

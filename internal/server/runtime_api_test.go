@@ -28,24 +28,22 @@ func TestRuntimeAPIRequiresBearerToken(t *testing.T) {
 func TestRuntimeAPIFlow(t *testing.T) {
 	handler, fixtures := newRuntimeTestRouter(t)
 
-	userResponse := postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
-		"channelId": fixtures.ChannelID,
-		"name":      "Student 001",
+	userPath := "/api/runtime/channels/" + fixtures.ChannelID + "/external-users/student-001"
+	userResponse := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
+		"name": "Student 001",
 	})
-	if userResponse.ID == "" || userResponse.Name != "Student 001" {
+	if userResponse.ID == "" || userResponse.ExternalUserID != "student-001" || userResponse.Name != "Student 001" {
 		t.Fatalf("user response = %#v", userResponse)
 	}
-	updatedUser := postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
-		"channelId": fixtures.ChannelID,
+	updatedUser := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
 		"name":      "Student 001",
 		"isEnabled": false,
 	})
 	if updatedUser.ID != userResponse.ID || updatedUser.IsEnabled {
 		t.Fatalf("updated user = %#v, want same disabled user %s", updatedUser, userResponse.ID)
 	}
-	userResponse = postRuntime[runtimeUserResponse](t, handler, "/api/runtime/users", map[string]any{
-		"channelId": fixtures.ChannelID,
-		"name":      "Student 001",
+	userResponse = runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
+		"name": "Student 001",
 	})
 
 	permissionsRequest := httptest.NewRequest(http.MethodGet, "/api/runtime/users/"+userResponse.ID+"/permissions", nil)
@@ -63,7 +61,7 @@ func TestRuntimeAPIFlow(t *testing.T) {
 		t.Fatalf("permissions = %#v, want one allowed permission", permissions.Permissions)
 	}
 
-	dispatch := postRuntime[dispatchKeyResponse](t, handler, "/api/runtime/dispatch-key", map[string]any{
+	dispatch := postRuntime[dispatchKeyResponse](t, handler, "/api/runtime/dispatches", map[string]any{
 		"channelId":  fixtures.ChannelID,
 		"userId":     userResponse.ID,
 		"providerId": fixtures.ProviderID,
@@ -73,16 +71,15 @@ func TestRuntimeAPIFlow(t *testing.T) {
 		t.Fatalf("dispatch = %#v, want runtime key", dispatch)
 	}
 
-	failure := postRuntime[keyFailureResponse](t, handler, "/api/runtime/key-failures", map[string]any{
-		"dispatchLogId": dispatch.DispatchLogID,
-		"errorCode":     "rate_limit",
-		"errorMessage":  "provider returned 429",
+	failure := postRuntime[keyFailureResponse](t, handler, "/api/runtime/dispatches/"+dispatch.DispatchLogID+"/failure", map[string]any{
+		"errorCode":    "rate_limit",
+		"errorMessage": "provider returned 429",
 	})
 	if !failure.Reported || failure.IsAvailable {
 		t.Fatalf("failure = %#v, want reported unavailable", failure)
 	}
 
-	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/runtime/users/"+userResponse.ID, nil)
+	deleteRequest := httptest.NewRequest(http.MethodDelete, userPath, nil)
 	deleteRequest.Header.Set("Authorization", "Bearer test-runtime-token")
 	deleteRecorder := httptest.NewRecorder()
 	handler.ServeHTTP(deleteRecorder, deleteRequest)
@@ -93,12 +90,17 @@ func TestRuntimeAPIFlow(t *testing.T) {
 
 func postRuntime[T any](t *testing.T, handler http.Handler, path string, payload map[string]any) T {
 	t.Helper()
+	return runtimeRequest[T](t, handler, http.MethodPost, path, payload)
+}
+
+func runtimeRequest[T any](t *testing.T, handler http.Handler, method string, path string, payload map[string]any) T {
+	t.Helper()
 
 	body, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
+	request := httptest.NewRequest(method, path, bytes.NewReader(body))
 	request.Header.Set("Authorization", "Bearer test-runtime-token")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -112,10 +114,24 @@ func postRuntime[T any](t *testing.T, handler http.Handler, path string, payload
 	return decoded
 }
 
+func TestRuntimeExternalUsersRejectHostedChannels(t *testing.T) {
+	handler, fixtures := newRuntimeTestRouter(t)
+
+	request := httptest.NewRequest(http.MethodPut, "/api/runtime/channels/"+fixtures.HostedChannelID+"/external-users/student-001", bytes.NewReader([]byte(`{"name":"Student 001"}`)))
+	request.Header.Set("Authorization", "Bearer test-runtime-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
 type runtimeFixtures struct {
-	ChannelID  string
-	ProviderID string
-	ModelID    string
+	ChannelID       string
+	HostedChannelID string
+	ProviderID      string
+	ModelID         string
 }
 
 func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
@@ -169,6 +185,7 @@ func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
 		Name:                  "Main",
 		Code:                  "main",
 		DefaultPermissionMode: "DENY",
+		UserManagementMode:    "EXTERNAL_MANAGED",
 		IsEnabled:             true,
 	})
 	if err != nil {
@@ -177,7 +194,17 @@ func newRuntimeTestRouter(t *testing.T) (http.Handler, runtimeFixtures) {
 	if err := store.SetChannelPermissionDefault(context.Background(), channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
 	}
+	hostedChannel, err := store.CreateChannel(context.Background(), admin.CreateChannelInput{
+		Name:                  "Hosted",
+		Code:                  "hosted",
+		DefaultPermissionMode: "DENY",
+		UserManagementMode:    "KEYCHAIN_HOSTED",
+		IsEnabled:             true,
+	})
+	if err != nil {
+		t.Fatalf("CreateChannel() hosted error = %v", err)
+	}
 
 	handler := NewRouter(Options{AdminStore: store, RuntimeToken: "test-runtime-token"})
-	return handler, runtimeFixtures{ChannelID: channel.ID, ProviderID: provider.ID, ModelID: model.ID}
+	return handler, runtimeFixtures{ChannelID: channel.ID, HostedChannelID: hostedChannel.ID, ProviderID: provider.ID, ModelID: model.ID}
 }

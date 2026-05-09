@@ -12,6 +12,7 @@ type Channel struct {
 	Name                  string `json:"name"`
 	Code                  string `json:"code"`
 	DefaultPermissionMode string `json:"defaultPermissionMode"`
+	UserManagementMode    string `json:"userManagementMode"`
 	IsEnabled             bool   `json:"isEnabled"`
 }
 
@@ -48,6 +49,7 @@ type CreateChannelInput struct {
 	Name                  string
 	Code                  string
 	DefaultPermissionMode string
+	UserManagementMode    string
 	IsEnabled             bool
 }
 
@@ -68,7 +70,7 @@ type UpdateUserInput struct {
 
 func (store *Store) ListChannels(ctx context.Context) ([]Channel, error) {
 	rows, err := store.db.QueryContext(ctx, `
-SELECT id, name, code, default_permission_mode, is_enabled
+SELECT id, name, code, default_permission_mode, user_management_mode, is_enabled
 FROM channels
 ORDER BY created_at DESC, name ASC;
 `)
@@ -81,7 +83,7 @@ ORDER BY created_at DESC, name ASC;
 	for rows.Next() {
 		var channel Channel
 		var isEnabled int
-		if err := rows.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &isEnabled); err != nil {
+		if err := rows.Scan(&channel.ID, &channel.Name, &channel.Code, &channel.DefaultPermissionMode, &channel.UserManagementMode, &isEnabled); err != nil {
 			return nil, fmt.Errorf("scan channel: %w", err)
 		}
 		channel.IsEnabled = isEnabled == 1
@@ -102,11 +104,17 @@ func (store *Store) CreateChannel(ctx context.Context, input CreateChannelInput)
 	if input.DefaultPermissionMode == "" {
 		input.DefaultPermissionMode = "DENY"
 	}
+	if input.UserManagementMode == "" {
+		input.UserManagementMode = "EXTERNAL_MANAGED"
+	}
 	if input.Name == "" {
 		return Channel{}, fmt.Errorf("channel name is required")
 	}
 	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
 		return Channel{}, fmt.Errorf("invalid channel default permission mode")
+	}
+	if input.UserManagementMode != "EXTERNAL_MANAGED" && input.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return Channel{}, fmt.Errorf("invalid channel user management mode")
 	}
 	now := formatTime(store.now())
 	channel := Channel{
@@ -114,12 +122,13 @@ func (store *Store) CreateChannel(ctx context.Context, input CreateChannelInput)
 		Name:                  input.Name,
 		Code:                  input.Code,
 		DefaultPermissionMode: input.DefaultPermissionMode,
+		UserManagementMode:    input.UserManagementMode,
 		IsEnabled:             input.IsEnabled,
 	}
 	if _, err := store.db.ExecContext(ctx, `
-INSERT INTO channels (id, name, code, default_permission_mode, is_enabled, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
-`, channel.ID, channel.Name, channel.Code, channel.DefaultPermissionMode, boolToInt(channel.IsEnabled), now, now); err != nil {
+INSERT INTO channels (id, name, code, default_permission_mode, user_management_mode, is_enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+`, channel.ID, channel.Name, channel.Code, channel.DefaultPermissionMode, channel.UserManagementMode, boolToInt(channel.IsEnabled), now, now); err != nil {
 		return Channel{}, fmt.Errorf("create channel: %w", err)
 	}
 	return channel, nil
@@ -138,11 +147,17 @@ func (store *Store) UpdateChannel(ctx context.Context, id string, input UpdateCh
 	if input.DefaultPermissionMode != "ALLOW" && input.DefaultPermissionMode != "DENY" {
 		return fmt.Errorf("invalid channel default permission mode")
 	}
+	if input.UserManagementMode == "" {
+		input.UserManagementMode = "EXTERNAL_MANAGED"
+	}
+	if input.UserManagementMode != "EXTERNAL_MANAGED" && input.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return fmt.Errorf("invalid channel user management mode")
+	}
 	if _, err := store.db.ExecContext(ctx, `
 UPDATE channels
-SET name = ?, code = ?, default_permission_mode = ?, is_enabled = ?, updated_at = ?
+SET name = ?, code = ?, default_permission_mode = ?, user_management_mode = ?, is_enabled = ?, updated_at = ?
 WHERE id = ?;
-`, input.Name, input.Code, input.DefaultPermissionMode, boolToInt(input.IsEnabled), formatTime(store.now()), id); err != nil {
+`, input.Name, input.Code, input.DefaultPermissionMode, input.UserManagementMode, boolToInt(input.IsEnabled), formatTime(store.now()), id); err != nil {
 		return fmt.Errorf("update channel: %w", err)
 	}
 	return nil

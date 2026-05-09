@@ -339,18 +339,20 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		Name:                  "Main",
 		Code:                  "main",
 		DefaultPermissionMode: "DENY",
+		UserManagementMode:    "EXTERNAL_MANAGED",
 		IsEnabled:             true,
 	})
 	if err != nil {
 		t.Fatalf("CreateChannel() error = %v", err)
 	}
-	user, err := store.UpsertRuntimeUser(context.Background(), UpsertRuntimeUserInput{
-		ChannelID: channel.ID,
-		Name:      "Student 001",
-		IsEnabled: true,
+	user, err := store.UpsertRuntimeExternalUser(context.Background(), UpsertRuntimeExternalUserInput{
+		ChannelID:      channel.ID,
+		ExternalUserID: "student-001",
+		Name:           "Student 001",
+		IsEnabled:      true,
 	})
 	if err != nil {
-		t.Fatalf("UpsertRuntimeUser() error = %v", err)
+		t.Fatalf("UpsertRuntimeExternalUser() error = %v", err)
 	}
 	if err := store.SetChannelPermissionDefault(context.Background(), channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
@@ -397,13 +399,14 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 			t.Fatalf("failed key is still available: %#v", key)
 		}
 	}
-	updatedUser, err := store.UpsertRuntimeUser(context.Background(), UpsertRuntimeUserInput{
-		ChannelID: channel.ID,
-		Name:      "Student 001",
-		IsEnabled: false,
+	updatedUser, err := store.UpsertRuntimeExternalUser(context.Background(), UpsertRuntimeExternalUserInput{
+		ChannelID:      channel.ID,
+		ExternalUserID: "student-001",
+		Name:           "Student 001",
+		IsEnabled:      false,
 	})
 	if err != nil {
-		t.Fatalf("UpsertRuntimeUser() update error = %v", err)
+		t.Fatalf("UpsertRuntimeExternalUser() update error = %v", err)
 	}
 	if updatedUser.ID != user.ID || updatedUser.IsEnabled {
 		t.Fatalf("updated user = %#v, want same disabled user %s", updatedUser, user.ID)

@@ -61,6 +61,7 @@ CREATE TABLE channels (
   name TEXT NOT NULL,
   code TEXT NOT NULL UNIQUE,
   default_permission_mode TEXT NOT NULL DEFAULT 'DENY',
+  user_management_mode TEXT NOT NULL DEFAULT 'EXTERNAL_MANAGED',
   is_enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
