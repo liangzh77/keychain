@@ -127,6 +127,82 @@ func TestRuntimeExternalUsersRejectHostedChannels(t *testing.T) {
 	}
 }
 
+func TestRuntimeHostedUserFlow(t *testing.T) {
+	handler, fixtures := newRuntimeTestRouter(t)
+
+	registerPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/register"
+	user := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, registerPath, map[string]any{
+		"username": "hosted-student-001",
+		"name":     "托管学生 001",
+		"password": "first-password",
+	})
+	if user.ID == "" || user.ExternalUserID != "hosted-student-001" || user.Name != "托管学生 001" || !user.IsEnabled {
+		t.Fatalf("hosted register response = %#v", user)
+	}
+
+	conflictRequest := httptest.NewRequest(http.MethodPost, registerPath, bytes.NewReader([]byte(`{"username":"hosted-student-001","password":"first-password"}`)))
+	conflictRequest.Header.Set("Authorization", "Bearer test-runtime-token")
+	conflictResponse := httptest.NewRecorder()
+	handler.ServeHTTP(conflictResponse, conflictRequest)
+	if conflictResponse.Code != http.StatusConflict {
+		t.Fatalf("duplicate register status = %d, body=%s", conflictResponse.Code, conflictResponse.Body.String())
+	}
+
+	loginPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/login"
+	login := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, loginPath, map[string]any{
+		"username": "hosted-student-001",
+		"password": "first-password",
+	})
+	if login.ID != user.ID {
+		t.Fatalf("login user id = %s, want %s", login.ID, user.ID)
+	}
+
+	badLoginRequest := httptest.NewRequest(http.MethodPost, loginPath, bytes.NewReader([]byte(`{"username":"hosted-student-001","password":"bad-password"}`)))
+	badLoginRequest.Header.Set("Authorization", "Bearer test-runtime-token")
+	badLoginResponse := httptest.NewRecorder()
+	handler.ServeHTTP(badLoginResponse, badLoginRequest)
+	if badLoginResponse.Code != http.StatusUnauthorized {
+		t.Fatalf("bad login status = %d, body=%s", badLoginResponse.Code, badLoginResponse.Body.String())
+	}
+
+	resetPath := "/api/runtime/channels/" + fixtures.HostedChannelID + "/hosted-users/" + user.ID + "/reset-password"
+	reset := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, resetPath, map[string]any{
+		"password": "second-password",
+	})
+	if reset.ID != user.ID {
+		t.Fatalf("reset user id = %s, want %s", reset.ID, user.ID)
+	}
+
+	newLogin := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPost, loginPath, map[string]any{
+		"username": "hosted-student-001",
+		"password": "second-password",
+	})
+	if newLogin.ID != user.ID {
+		t.Fatalf("new login user id = %s, want %s", newLogin.ID, user.ID)
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/runtime/channels/"+fixtures.HostedChannelID+"/hosted-users/"+user.ID, nil)
+	deleteRequest.Header.Set("Authorization", "Bearer test-runtime-token")
+	deleteResponse := httptest.NewRecorder()
+	handler.ServeHTTP(deleteResponse, deleteRequest)
+	if deleteResponse.Code != http.StatusOK {
+		t.Fatalf("delete hosted user status = %d, body=%s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+}
+
+func TestRuntimeHostedUsersRejectExternalManagedChannels(t *testing.T) {
+	handler, fixtures := newRuntimeTestRouter(t)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/runtime/channels/"+fixtures.ChannelID+"/hosted-users/register", bytes.NewReader([]byte(`{"username":"student-001","password":"password"}`)))
+	request.Header.Set("Authorization", "Bearer test-runtime-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+}
+
 type runtimeFixtures struct {
 	ChannelID       string
 	HostedChannelID string

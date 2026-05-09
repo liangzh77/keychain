@@ -41,6 +41,7 @@ func TestMigrateCreatesCoreSchemaAndIsIdempotent(t *testing.T) {
 		"api_keys",
 		"channels",
 		"users",
+		"hosted_user_credentials",
 		"channel_permission_defaults",
 		"user_permissions",
 		"user_key_permissions",
@@ -58,8 +59,8 @@ func TestMigrateCreatesCoreSchemaAndIsIdempotent(t *testing.T) {
 	if err := database.SQL().QueryRowContext(context.Background(), "SELECT COUNT(*) FROM schema_migrations").Scan(&appliedCount); err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if appliedCount != 2 {
-		t.Fatalf("applied migrations = %d, want 2", appliedCount)
+	if appliedCount != 3 {
+		t.Fatalf("applied migrations = %d, want 3", appliedCount)
 	}
 }
 

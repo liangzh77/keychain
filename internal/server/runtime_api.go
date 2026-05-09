@@ -23,6 +23,21 @@ type runtimeUserResponse struct {
 	IsEnabled      bool   `json:"isEnabled"`
 }
 
+type hostedUserRegisterRequest struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+type hostedUserLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type hostedUserResetPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 type runtimePermissionsResponse struct {
 	UserID      string                      `json:"userId"`
 	Permissions []admin.EffectivePermission `json:"permissions"`
@@ -62,6 +77,10 @@ func registerRuntimeAPIRoutes(mux *http.ServeMux, store *admin.Store, token stri
 	}
 	mux.HandleFunc("PUT /api/runtime/channels/{channelId}/external-users/{externalUserId}", requireRuntime(runtimeUpsertExternalUserHandler(store)))
 	mux.HandleFunc("DELETE /api/runtime/channels/{channelId}/external-users/{externalUserId}", requireRuntime(runtimeDeleteExternalUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/register", requireRuntime(runtimeRegisterHostedUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/login", requireRuntime(runtimeLoginHostedUserHandler(store)))
+	mux.HandleFunc("POST /api/runtime/channels/{channelId}/hosted-users/{userId}/reset-password", requireRuntime(runtimeResetHostedUserPasswordHandler(store)))
+	mux.HandleFunc("DELETE /api/runtime/channels/{channelId}/hosted-users/{userId}", requireRuntime(runtimeDeleteHostedUserHandler(store)))
 	mux.HandleFunc("GET /api/runtime/users/{id}/permissions", requireRuntime(runtimeUserPermissionsHandler(store)))
 	mux.HandleFunc("GET /api/runtime/providers", requireRuntime(runtimeProvidersHandler(store)))
 	mux.HandleFunc("GET /api/runtime/models", requireRuntime(runtimeModelsHandler(store)))
@@ -129,6 +148,87 @@ func runtimeDeleteExternalUserHandler(store *admin.Store) http.HandlerFunc {
 		}
 		web.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
 	}
+}
+
+func runtimeRegisterHostedUserHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request hostedUserRegisterRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
+			return
+		}
+		user, err := store.RegisterRuntimeHostedUser(r.Context(), admin.RegisterRuntimeHostedUserInput{
+			ChannelID: r.PathValue("channelId"),
+			Username:  request.Username,
+			Name:      request.Name,
+			Password:  request.Password,
+		})
+		if err != nil {
+			web.WriteError(w, runtimeErrorStatus(err), "REGISTER_HOSTED_USER_FAILED", err.Error(), nil)
+			return
+		}
+		writeRuntimeUser(w, user)
+	}
+}
+
+func runtimeLoginHostedUserHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request hostedUserLoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
+			return
+		}
+		user, err := store.LoginRuntimeHostedUser(r.Context(), admin.LoginRuntimeHostedUserInput{
+			ChannelID: r.PathValue("channelId"),
+			Username:  request.Username,
+			Password:  request.Password,
+		})
+		if err != nil {
+			web.WriteError(w, runtimeErrorStatus(err), "LOGIN_HOSTED_USER_FAILED", err.Error(), nil)
+			return
+		}
+		writeRuntimeUser(w, user)
+	}
+}
+
+func runtimeResetHostedUserPasswordHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request hostedUserResetPasswordRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			web.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON body", nil)
+			return
+		}
+		user, err := store.ResetRuntimeHostedUserPassword(r.Context(), admin.ResetRuntimeHostedUserPasswordInput{
+			ChannelID: r.PathValue("channelId"),
+			UserID:    r.PathValue("userId"),
+			Password:  request.Password,
+		})
+		if err != nil {
+			web.WriteError(w, runtimeErrorStatus(err), "RESET_HOSTED_USER_PASSWORD_FAILED", err.Error(), nil)
+			return
+		}
+		writeRuntimeUser(w, user)
+	}
+}
+
+func runtimeDeleteHostedUserHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := store.DeleteRuntimeHostedUser(r.Context(), r.PathValue("channelId"), r.PathValue("userId")); err != nil {
+			web.WriteError(w, runtimeErrorStatus(err), "DELETE_HOSTED_USER_FAILED", err.Error(), nil)
+			return
+		}
+		web.WriteJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	}
+}
+
+func writeRuntimeUser(w http.ResponseWriter, user admin.User) {
+	web.WriteJSON(w, http.StatusOK, runtimeUserResponse{
+		ID:             user.ID,
+		ChannelID:      user.ChannelID,
+		ExternalUserID: user.ExternalUserID,
+		Name:           user.DisplayName,
+		IsEnabled:      user.IsEnabled,
+	})
 }
 
 func runtimeUserPermissionsHandler(store *admin.Store) http.HandlerFunc {
@@ -216,8 +316,14 @@ func runtimeKeyFailureHandler(store *admin.Store) http.HandlerFunc {
 
 func runtimeErrorStatus(err error) int {
 	message := err.Error()
+	if strings.Contains(message, "invalid credentials") {
+		return http.StatusUnauthorized
+	}
 	if strings.Contains(message, "not found") {
 		return http.StatusNotFound
+	}
+	if strings.Contains(message, "already exists") {
+		return http.StatusConflict
 	}
 	if strings.Contains(message, "permission denied") {
 		return http.StatusForbidden

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UpsertRuntimeExternalUserInput struct {
@@ -13,6 +15,25 @@ type UpsertRuntimeExternalUserInput struct {
 	ExternalUserID string
 	Name           string
 	IsEnabled      bool
+}
+
+type RegisterRuntimeHostedUserInput struct {
+	ChannelID string
+	Username  string
+	Name      string
+	Password  string
+}
+
+type LoginRuntimeHostedUserInput struct {
+	ChannelID string
+	Username  string
+	Password  string
+}
+
+type ResetRuntimeHostedUserPasswordInput struct {
+	ChannelID string
+	UserID    string
+	Password  string
 }
 
 type RuntimeProvider struct {
@@ -102,6 +123,163 @@ func (store *Store) DeleteRuntimeExternalUser(ctx context.Context, channelID str
 	user, err := store.lookupUserByExternalID(ctx, channel.ID, strings.TrimSpace(externalUserID))
 	if err != nil {
 		return err
+	}
+	return store.DeleteUser(ctx, user.ID)
+}
+
+func (store *Store) RegisterRuntimeHostedUser(ctx context.Context, input RegisterRuntimeHostedUserInput) (User, error) {
+	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.Username = strings.TrimSpace(input.Username)
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Username == "" {
+		return User{}, fmt.Errorf("username is required")
+	}
+	if input.Name == "" {
+		input.Name = input.Username
+	}
+	if strings.TrimSpace(input.Password) == "" {
+		return User{}, fmt.Errorf("password is required")
+	}
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	if err != nil {
+		return User{}, err
+	}
+	if channel.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return User{}, fmt.Errorf("channel does not accept hosted users")
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return User{}, fmt.Errorf("hash hosted user password: %w", err)
+	}
+
+	tx, err := store.db.BeginTx(ctx, nil)
+	if err != nil {
+		return User{}, fmt.Errorf("begin register hosted user: %w", err)
+	}
+	defer tx.Rollback()
+
+	now := formatTime(store.now())
+	user := User{
+		ID:             newID("user"),
+		ChannelID:      channel.ID,
+		ExternalUserID: input.Username,
+		DisplayName:    input.Name,
+		IsEnabled:      true,
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO users (id, channel_id, external_user_id, display_name, is_enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, 1, ?, ?);
+`, user.ID, user.ChannelID, user.ExternalUserID, user.DisplayName, now, now); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return User{}, fmt.Errorf("hosted user already exists")
+		}
+		return User{}, fmt.Errorf("create hosted user: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO hosted_user_credentials (user_id, password_hash, created_at, updated_at)
+VALUES (?, ?, ?, ?);
+`, user.ID, string(passwordHash), now, now); err != nil {
+		return User{}, fmt.Errorf("create hosted user credentials: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return User{}, fmt.Errorf("commit register hosted user: %w", err)
+	}
+	return user, nil
+}
+
+func (store *Store) LoginRuntimeHostedUser(ctx context.Context, input LoginRuntimeHostedUserInput) (User, error) {
+	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.Username = strings.TrimSpace(input.Username)
+	if input.Username == "" || strings.TrimSpace(input.Password) == "" {
+		return User{}, fmt.Errorf("username and password are required")
+	}
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	if err != nil {
+		return User{}, err
+	}
+	if channel.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return User{}, fmt.Errorf("channel does not accept hosted users")
+	}
+
+	var user User
+	var isEnabled int
+	var passwordHash string
+	if err := store.db.QueryRowContext(ctx, `
+SELECT users.id, users.channel_id, users.external_user_id, users.display_name, users.is_enabled, hosted_user_credentials.password_hash
+FROM users
+JOIN hosted_user_credentials ON hosted_user_credentials.user_id = users.id
+WHERE users.channel_id = ? AND users.external_user_id = ?;
+`, channel.ID, input.Username).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled, &passwordHash); err != nil {
+		if err == sql.ErrNoRows {
+			return User{}, fmt.Errorf("invalid credentials")
+		}
+		return User{}, fmt.Errorf("read hosted user credentials: %w", err)
+	}
+	if isEnabled != 1 {
+		return User{}, fmt.Errorf("user is disabled")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password)); err != nil {
+		return User{}, fmt.Errorf("invalid credentials")
+	}
+	user.IsEnabled = true
+	return user, nil
+}
+
+func (store *Store) ResetRuntimeHostedUserPassword(ctx context.Context, input ResetRuntimeHostedUserPasswordInput) (User, error) {
+	input.ChannelID = strings.TrimSpace(input.ChannelID)
+	input.UserID = strings.TrimSpace(input.UserID)
+	if input.UserID == "" {
+		return User{}, fmt.Errorf("user id is required")
+	}
+	if strings.TrimSpace(input.Password) == "" {
+		return User{}, fmt.Errorf("password is required")
+	}
+	channel, err := store.lookupEnabledChannel(ctx, input.ChannelID)
+	if err != nil {
+		return User{}, err
+	}
+	if channel.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return User{}, fmt.Errorf("channel does not accept hosted users")
+	}
+	user, err := store.lookupUserByID(ctx, input.UserID)
+	if err != nil {
+		return User{}, err
+	}
+	if user.ChannelID != channel.ID {
+		return User{}, fmt.Errorf("user does not belong to channel")
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return User{}, fmt.Errorf("hash hosted user password: %w", err)
+	}
+	result, err := store.db.ExecContext(ctx, `
+UPDATE hosted_user_credentials
+SET password_hash = ?, updated_at = ?
+WHERE user_id = ?;
+`, string(passwordHash), formatTime(store.now()), user.ID)
+	if err != nil {
+		return User{}, fmt.Errorf("reset hosted user password: %w", err)
+	}
+	if rowsAffected, err := result.RowsAffected(); err == nil && rowsAffected == 0 {
+		return User{}, fmt.Errorf("hosted user credentials not found")
+	}
+	return user, nil
+}
+
+func (store *Store) DeleteRuntimeHostedUser(ctx context.Context, channelID string, userID string) error {
+	channel, err := store.lookupEnabledChannel(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	if channel.UserManagementMode != "KEYCHAIN_HOSTED" {
+		return fmt.Errorf("channel does not accept hosted users")
+	}
+	user, err := store.lookupUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.ChannelID != channel.ID {
+		return fmt.Errorf("user does not belong to channel")
 	}
 	return store.DeleteUser(ctx, user.ID)
 }
@@ -487,6 +665,20 @@ SELECT id, channel_id, external_user_id, display_name, is_enabled
 FROM users
 WHERE channel_id = ? AND external_user_id = ?;
 `, channelID, strings.TrimSpace(externalUserID)).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
+		return User{}, wrapNotFound(err, "user not found")
+	}
+	user.IsEnabled = isEnabled == 1
+	return user, nil
+}
+
+func (store *Store) lookupUserByID(ctx context.Context, userID string) (User, error) {
+	var user User
+	var isEnabled int
+	if err := store.db.QueryRowContext(ctx, `
+SELECT id, channel_id, external_user_id, display_name, is_enabled
+FROM users
+WHERE id = ?;
+`, strings.TrimSpace(userID)).Scan(&user.ID, &user.ChannelID, &user.ExternalUserID, &user.DisplayName, &isEnabled); err != nil {
 		return User{}, wrapNotFound(err, "user not found")
 	}
 	user.IsEnabled = isEnabled == 1

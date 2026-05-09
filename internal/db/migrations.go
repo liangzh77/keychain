@@ -79,6 +79,14 @@ CREATE TABLE users (
   UNIQUE (channel_id, external_user_id)
 );
 
+CREATE TABLE hosted_user_credentials (
+  user_id TEXT PRIMARY KEY,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE channel_permission_defaults (
   id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL,
@@ -170,6 +178,7 @@ CREATE INDEX idx_api_keys_provider_id ON api_keys(provider_id);
 CREATE INDEX idx_api_keys_provider_available ON api_keys(provider_id, is_enabled, is_available, sort_order);
 CREATE INDEX idx_users_channel_id ON users(channel_id);
 CREATE INDEX idx_users_channel_external ON users(channel_id, external_user_id);
+CREATE INDEX idx_hosted_user_credentials_user ON hosted_user_credentials(user_id);
 CREATE INDEX idx_user_permissions_user ON user_permissions(user_id);
 CREATE INDEX idx_user_key_permissions_user_provider ON user_key_permissions(user_id, provider_id);
 CREATE INDEX idx_channel_permission_defaults_channel ON channel_permission_defaults(channel_id);
@@ -201,6 +210,21 @@ CREATE TABLE IF NOT EXISTS user_key_permissions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_key_permissions_user_provider ON user_key_permissions(user_id, provider_id);
+`,
+	},
+	{
+		Version: 3,
+		Name:    "add_hosted_user_credentials",
+		SQL: `
+CREATE TABLE IF NOT EXISTS hosted_user_credentials (
+  user_id TEXT PRIMARY KEY,
+  password_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_hosted_user_credentials_user ON hosted_user_credentials(user_id);
 `,
 	},
 }

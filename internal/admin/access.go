@@ -285,6 +285,9 @@ func (store *Store) DeleteUser(ctx context.Context, id string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM user_key_permissions WHERE user_id = ?;`, id); err != nil {
 		return fmt.Errorf("delete user key permissions: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM hosted_user_credentials WHERE user_id = ?;`, id); err != nil {
+		return fmt.Errorf("delete hosted user credentials: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?;`, id); err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}

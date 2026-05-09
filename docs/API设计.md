@@ -278,7 +278,7 @@ Channel 字段：
 `userManagementMode` 可选：
 
 - `EXTERNAL_MANAGED`：外部系统自有用户系统，通过 Runtime API 同步用户。
-- `KEYCHAIN_HOSTED`：Keychain 托管用户系统，后续由 Keychain 提供注册、登录、重置密码和注销能力。
+- `KEYCHAIN_HOSTED`：Keychain 托管用户系统，由 Runtime API 提供注册、登录、重置密码和注销能力。
 
 ### Users
 
@@ -479,6 +479,87 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 ### DELETE /api/runtime/channels/:channelId/external-users/:externalUserId
 
 删除外部系统自有用户。
+
+响应：
+
+```json
+{
+  "deleted": true
+}
+```
+
+### POST /api/runtime/channels/:channelId/hosted-users/register
+
+注册 Keychain 托管用户。该接口只适用于 `userManagementMode = KEYCHAIN_HOSTED` 的渠道。
+
+请求：
+
+```json
+{
+  "username": "student_001",
+  "name": "Student 001",
+  "password": "user-password"
+}
+```
+
+响应：
+
+```json
+{
+  "id": "user_001",
+  "channelId": "channel_001",
+  "externalUserId": "student_001",
+  "name": "Student 001",
+  "isEnabled": true
+}
+```
+
+`externalUserId` 等于托管用户的 `username`。同一渠道内用户名重复时返回 `409`。
+
+### POST /api/runtime/channels/:channelId/hosted-users/login
+
+校验 Keychain 托管用户用户名和密码。登录成功返回用户信息；Keychain 不签发终端用户 session token。
+
+请求：
+
+```json
+{
+  "username": "student_001",
+  "password": "user-password"
+}
+```
+
+响应：
+
+```json
+{
+  "id": "user_001",
+  "channelId": "channel_001",
+  "externalUserId": "student_001",
+  "name": "Student 001",
+  "isEnabled": true
+}
+```
+
+用户名或密码错误时返回 `401`。
+
+### POST /api/runtime/channels/:channelId/hosted-users/:userId/reset-password
+
+重置 Keychain 托管用户密码。
+
+请求：
+
+```json
+{
+  "password": "new-user-password"
+}
+```
+
+响应同登录接口。
+
+### DELETE /api/runtime/channels/:channelId/hosted-users/:userId
+
+注销 Keychain 托管用户。
 
 响应：
 
