@@ -14,3 +14,4 @@ dist/
 tmp/
 .playwright-mcp/
 docs/runtime_api_token.md
+服务器配置.txt
