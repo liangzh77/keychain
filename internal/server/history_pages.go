@@ -20,6 +20,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Keychain 调用历史</title>
+  <link rel="icon" href="/assets/keychain-icon.png">
   <style>
     :root { --bg: #f4f1ea; --surface: #fffcf5; --surface-muted: #f7f2ea; --line: #d7cdbf; --line-soft: #ece4d8; --text: #242824; --muted: #6f7169; --accent: #31594a; --accent-soft: #e8efe8; --accent-line: #9fb9aa; --secondary: #5a5448; --danger: #9b3d35; --warn: #b26b2f; }
     * { box-sizing: border-box; }
@@ -27,6 +28,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
     header { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
     header form { margin: 0; }
     .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand-logo { width: 26px; height: 26px; object-fit: contain; border-radius: 5px; align-self: center; }
     .brand strong { font-size: 16px; }
     .tab { padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; }
     .tab.active, .tab:hover { background: var(--accent-soft); color: var(--accent); }
@@ -93,7 +95,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
 </head>
 <body>
   <header>
-    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a><a class="tab active" href="/admin/history">调用历史</a></div>
+    <div class="brand"><img class="brand-logo" src="/assets/keychain-icon.png" alt="" aria-hidden="true"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a><a class="tab active" href="/admin/history">调用历史</a></div>
     <form method="post" action="/logout"><button class="ghost" type="submit">退出</button></form>
   </header>
   <div class="app">

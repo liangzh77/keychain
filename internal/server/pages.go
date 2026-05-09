@@ -14,9 +14,12 @@ var loginPageTemplate = template.Must(template.New("login").Parse(`<!doctype htm
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Keychain 登录</title>
+  <link rel="icon" href="/assets/keychain-icon.png">
   <style>
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f1ea; color: #242824; }
     main { width: min(420px, calc(100vw - 32px)); background: #fffcf5; border: 1px solid #d7cdbf; border-radius: 8px; padding: 28px; box-shadow: 0 18px 52px rgba(52,45,33,.1); }
+    .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .brand-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; }
     h1 { margin: 0 0 8px; font-size: 24px; }
     p { margin: 0 0 24px; color: #6f7169; }
     form { display: grid; gap: 14px; }
@@ -28,7 +31,7 @@ var loginPageTemplate = template.Must(template.New("login").Parse(`<!doctype htm
 </head>
 <body>
   <main>
-    <h1>Keychain</h1>
+    <div class="login-brand"><img class="brand-logo" src="/assets/keychain-icon.png" alt="" aria-hidden="true"><h1>Keychain</h1></div>
     <p>管理员登录</p>
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
     <form method="post" action="/login">
@@ -46,6 +49,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Keychain 后台</title>
+  <link rel="icon" href="/assets/keychain-icon.png">
   <style>
     :root { --bg: #f4f1ea; --surface: #fffcf5; --surface-muted: #f7f2ea; --line: #d7cdbf; --line-soft: #ece4d8; --text: #242824; --muted: #6f7169; --accent: #31594a; --accent-soft: #e8efe8; --accent-line: #9fb9aa; --secondary: #5a5448; --danger: #9b3d35; --ok: #31594a; }
     * { box-sizing: border-box; }
@@ -53,6 +57,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     header { height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
     header form { margin: 0; }
     .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand-logo { width: 26px; height: 26px; object-fit: contain; border-radius: 5px; align-self: center; }
     .brand strong { font-size: 16px; }
     .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
     .app[aria-busy="true"] { cursor: progress; }
@@ -142,7 +147,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
 </head>
 <body>
   <header>
-    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab active" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a><a class="tab" href="/admin/history">调用历史</a></div>
+    <div class="brand"><img class="brand-logo" src="/assets/keychain-icon.png" alt="" aria-hidden="true"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab active" href="/admin">Providers</a><a class="tab" href="/admin/access">渠道与授权</a><a class="tab" href="/admin/history">调用历史</a></div>
     <form method="post" action="/logout"><button class="ghost" type="submit">退出</button></form>
   </header>
   <div class="app">

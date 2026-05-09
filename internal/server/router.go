@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -23,6 +24,10 @@ func NewRouter(options Options) http.Handler {
 	}
 
 	mux := http.NewServeMux()
+	assets, err := fs.Sub(embeddedAssets, "assets")
+	if err == nil {
+		mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
+	}
 	mux.HandleFunc("GET /healthz", healthzHandler(options.HealthCheck))
 	mux.HandleFunc("GET /api/health", healthHandlerWithCheck(options.Now, options.HealthCheck))
 	if options.AdminStore != nil {
