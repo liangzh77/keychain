@@ -238,8 +238,10 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
             <thead>
               <tr>
                 <th>时间</th>
-                <th>渠道 / 用户</th>
-                <th>Provider / 模型</th>
+                <th>渠道</th>
+                <th>用户</th>
+                <th>Provider</th>
+                <th>模型</th>
                 <th>Key</th>
                 <th>状态</th>
                 <th>失败信息</th>
@@ -249,14 +251,16 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
               {{range .Rows}}
                 <tr>
                   <td>{{.CreatedAtText}}</td>
-                  <td><strong>{{.ChannelName}}</strong><br><span class="muted small">{{.UserDisplayName}}</span></td>
-                  <td><strong>{{.ProviderName}}</strong><br><span class="muted small">{{.ModelName}}</span></td>
+                  <td>{{.ChannelName}}</td>
+                  <td>{{.UserDisplayName}}</td>
+                  <td>{{.ProviderName}}</td>
+                  <td>{{.ModelName}}</td>
                   <td>{{.KeyAlias}}</td>
                   <td><span class="tag {{if .IsFailed}}warn{{end}}">{{.StatusText}}</span></td>
                   <td class="failure">{{.FailureText}}</td>
                 </tr>
               {{else}}
-                <tr><td colspan="6" class="empty">没有匹配的调用记录。</td></tr>
+                <tr><td colspan="8" class="empty">没有匹配的调用记录。</td></tr>
               {{end}}
             </tbody>
           </table>
