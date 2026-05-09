@@ -11,6 +11,7 @@ import (
 
 	"github.com/liangzh77/keychain/internal/admin"
 	keydb "github.com/liangzh77/keychain/internal/db"
+	"github.com/liangzh77/keychain/internal/web"
 )
 
 func TestRuntimeAPIRequiresBearerToken(t *testing.T) {
@@ -88,6 +89,40 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	handler.ServeHTTP(deleteRecorder, deleteRequest)
 	if deleteRecorder.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, body=%s", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+}
+
+func TestRuntimeDispatchDisabledUserReturnsClearError(t *testing.T) {
+	handler, fixtures := newRuntimeTestRouter(t)
+
+	userPath := "/api/runtime/channels/" + fixtures.ChannelName + "/external-users/student-disabled"
+	userResponse := runtimeRequest[runtimeUserResponse](t, handler, http.MethodPut, userPath, map[string]any{
+		"name":      "Student Disabled",
+		"isEnabled": false,
+	})
+	if err := fixtures.Store.SetUserKeyPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.KeyID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission() error = %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/runtime/dispatches", bytes.NewReader([]byte(`{
+		"channelName":"`+fixtures.ChannelName+`",
+		"userId":"`+userResponse.ID+`",
+		"providerId":"`+fixtures.ProviderID+`",
+		"modelId":"`+fixtures.ModelID+`"
+	}`)))
+	request.Header.Set("Authorization", "Bearer test-runtime-token")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	var body web.ErrorBody
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if body.Error.Code != "DISPATCH_KEY_FAILED" || body.Error.Message != "User not enabled" {
+		t.Fatalf("error body = %#v", body)
 	}
 }
 

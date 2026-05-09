@@ -419,7 +419,7 @@ WHERE id = ?;
 		return DispatchKeyResult{}, fmt.Errorf("user does not belong to channel")
 	}
 	if userEnabled != 1 {
-		return DispatchKeyResult{}, fmt.Errorf("user is disabled")
+		return DispatchKeyResult{}, fmt.Errorf("User not enabled")
 	}
 
 	var providerName, rotationStrategy string
