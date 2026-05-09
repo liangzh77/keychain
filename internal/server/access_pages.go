@@ -26,6 +26,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .brand { display: flex; align-items: baseline; gap: 10px; }
     .brand strong { font-size: 16px; }
     .app { height: calc(100vh - 56px); display: grid; grid-template-columns: 300px minmax(0, 1fr); overflow: hidden; }
+    .app[aria-busy="true"] { cursor: progress; }
     aside { border-right: 1px solid var(--line); background: var(--surface-muted); overflow: auto; padding: 16px; }
     main { overflow: auto; padding: 16px 20px 24px; }
     h1, h2, h3 { margin: 0; line-height: 1.2; }
@@ -320,6 +321,52 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     </main>
   </div>
   <script>
+    function replaceAdminApp(html, url) {
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      const nextApp = parsed.querySelector('.app');
+      const currentApp = document.querySelector('.app');
+      if (!nextApp || !currentApp) {
+        window.location.href = url || window.location.href;
+        return;
+      }
+      currentApp.replaceWith(nextApp);
+      if (url && url !== window.location.href) {
+        window.history.pushState({}, '', url);
+      }
+      initAdminPage();
+    }
+
+    async function submitAdminForm(form, submitter) {
+      const app = document.querySelector('.app');
+      const button = submitter && submitter.tagName === 'BUTTON' ? submitter : null;
+      if (app) app.setAttribute('aria-busy', 'true');
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch(form.action, {
+          method: form.method || 'POST',
+          body: new URLSearchParams(new FormData(form)),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'X-Requested-With': 'fetch'
+          }
+        });
+        const html = await response.text();
+        replaceAdminApp(html, response.url);
+      } catch (error) {
+        form.submit();
+      } finally {
+        if (app) app.removeAttribute('aria-busy');
+        if (button) button.disabled = false;
+      }
+    }
+
+    function initAdminPage() {
+    document.querySelectorAll('.app form[method="post"]').forEach((form) => {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        submitAdminForm(form, event.submitter);
+      });
+    });
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
       if (!save) return;
@@ -352,6 +399,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         form.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+    }
+    initAdminPage();
   </script>
 </body>
 </html>`))
