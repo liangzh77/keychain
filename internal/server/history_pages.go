@@ -743,6 +743,11 @@ func buildHistoryChart(points []admin.DispatchHistoryPoint) (string, string, []h
 	chartPoints := make([]historyChartPoint, 0, len(points))
 	for index, point := range points {
 		x := left + float64(index)*step
+		if len(points) == 1 {
+			x = left + width/2
+		} else if len(points) == 2 {
+			x = left + width*(float64(index)+1)/3
+		}
 		totalY := top + height - float64(point.TotalCount)/float64(maxCount)*height
 		failureY := top + height - float64(point.FailedCount)/float64(maxCount)*height
 		totalPairs = append(totalPairs, fmt.Sprintf("%d,%d", int(math.Round(x)), int(math.Round(totalY))))
