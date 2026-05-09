@@ -159,12 +159,6 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       </div>
     </aside>
     <main>
-      <div class="topline">
-        <div>
-          <h1>渠道与授权</h1>
-          <p class="muted">选择渠道后，在同一页维护渠道信息、provider 默认授权、用户和用户显式授权。</p>
-        </div>
-      </div>
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
         <div class="access-grid">
@@ -173,7 +167,6 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               <div class="topline">
                 <div>
                   <h2>渠道详情</h2>
-                  <p class="muted">{{.Selected.Channel.Name}}</p>
                 </div>
                 {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
               </div>

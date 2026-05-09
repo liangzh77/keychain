@@ -107,6 +107,8 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     details.add-panel .add-cancel { display: none; position: absolute; top: 7px; right: 7px; width: 24px; height: 24px; padding: 0; border-radius: 999px; background: #efe9df; color: #5a5448; font-size: 18px; line-height: 1; }
     details.add-panel[open] .add-cancel { display: inline-flex; align-items: center; justify-content: center; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+    .section-title h2 { font-size: 18px; line-height: 1.2; font-weight: 700; }
+    .section-title p { font-size: 12px; line-height: 1.2; }
     .section-title > details.add-panel[open] { grid-column: 1 / -1; }
     .section-title > details.add-panel[open] > summary { width: max-content; min-width: 138px; margin-left: auto; margin-right: 34px; }
     .scroll-list { height: 276px; overflow-y: auto; padding-right: 2px; align-content: start; }
@@ -151,10 +153,10 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
           <form method="post" action="/admin/providers">
             <label>名称<input name="name" placeholder="OpenAI" required></label>
-            <label>Key 分发策略
+            <label>密钥分发策略
               <select name="rotationStrategy">
                 <option value="ROUND_ROBIN">轮询分发</option>
-                <option value="STICKY_FIRST_AVAILABLE">优先第一个可用 key</option>
+                <option value="STICKY_FIRST_AVAILABLE">优先第一个可用密钥</option>
               </select>
             </label>
             <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用 provider</label>
@@ -170,7 +172,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                   <strong>{{.Provider.Name}}</strong>
                   {{if .Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
                 </div>
-                <div class="provider-row"><span class="count">{{.ModelCount}} models · {{.KeyCount}} keys</span></div>
+                <div class="provider-row"><span class="count">{{.ModelCount}}个模型 · {{.KeyCount}}个密钥</span></div>
               </a>
             {{else}}
               <div class="panel empty">还没有 provider。</div>
@@ -180,20 +182,13 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       </div>
     </aside>
     <main>
-      <div class="topline">
-        <div>
-          <h1>Providers</h1>
-          <p class="muted">已登录为 {{.Username}}。选择一个 provider 后，在同一页维护 provider、keys 和 models。</p>
-        </div>
-      </div>
       {{if .Error}}<div class="notice">{{.Error}}</div>{{end}}
       {{if .Selected}}
         <div class="stack">
         <section class="panel content half-card">
           <div class="topline">
             <div>
-              <h2>{{.Selected.Provider.Name}}</h2>
-              <p class="muted">{{.Selected.Provider.RotationStrategy}}</p>
+              <h2>Provider 详情</h2>
             </div>
             {{if .Selected.Provider.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
           </div>
@@ -201,10 +196,10 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
             <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
             <input type="hidden" name="code" value="{{.Selected.Provider.Code}}">
             <label>名称<input name="name" value="{{.Selected.Provider.Name}}" required></label>
-            <label>Key 分发策略
+            <label>密钥分发策略
               <select name="rotationStrategy">
                 <option value="ROUND_ROBIN" {{if eq .Selected.Provider.RotationStrategy "ROUND_ROBIN"}}selected{{end}}>轮询分发</option>
-                <option value="STICKY_FIRST_AVAILABLE" {{if eq .Selected.Provider.RotationStrategy "STICKY_FIRST_AVAILABLE"}}selected{{end}}>优先第一个可用 key</option>
+                <option value="STICKY_FIRST_AVAILABLE" {{if eq .Selected.Provider.RotationStrategy "STICKY_FIRST_AVAILABLE"}}selected{{end}}>优先第一个可用密钥</option>
               </select>
             </label>
             <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .Selected.Provider.IsEnabled}}checked{{end}}> 启用</label>
@@ -222,17 +217,17 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
           <div class="content">
             <div class="section-title">
               <div>
-                <h2>Models</h2>
+                <h2>模型</h2>
                 <p class="muted small">列表只显示名称，最多显示 6 行。</p>
               </div>
               <details class="add-panel wide-add">
-                <summary>添加 Model</summary>
+                <summary>添加模型</summary>
                 <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
                 <form class="form-grid model-form" method="post" action="/admin/models">
                   <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                   <label>名称<input name="name" placeholder="GPT 4.1" required></label>
                   <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
-                  <button type="submit">添加 model</button>
+                  <button type="submit">添加模型</button>
                 </form>
               </details>
             </div>
@@ -275,11 +270,11 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
         <section class="panel content">
           <div class="section-title">
             <div>
-              <h2>Keys</h2>
+              <h2>密钥</h2>
               <p class="muted small">列表只显示别名，最多显示 6 行。</p>
             </div>
             <details class="add-panel wide-add">
-              <summary>添加 Key</summary>
+              <summary>添加密钥</summary>
               <button class="add-cancel" type="button" data-close-add aria-label="取消添加">×</button>
               <form class="form-grid key-form" method="post" action="/admin/keys">
                 <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
@@ -290,7 +285,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                   <label class="check"><input type="checkbox" name="isEnabled" value="1" checked> 启用</label>
                   <label class="check"><input type="checkbox" name="isAvailable" value="1" checked> 可用</label>
                 </span>
-                <button type="submit">添加 key</button>
+                <button type="submit">添加密钥</button>
               </form>
             </details>
           </div>
@@ -314,7 +309,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               </div>
               {{if .SelectedKey}}
                 <div class="pane">
-                  <div class="pane-title"><span>Key 详情</span></div>
+                  <div class="pane-title"><span>密钥详情</span></div>
                   <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
                     <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                     <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
@@ -711,7 +706,7 @@ func formCreateKeyHandler(store *admin.Store) http.HandlerFunc {
 			SortOrder:   parseOptionalInt(r.FormValue("sortOrder")),
 		})
 		if err != nil {
-			redirectAdminError(w, r, "添加 key 失败："+err.Error())
+			redirectAdminError(w, r, "添加密钥失败："+err.Error())
 			return
 		}
 		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&keyId="+template.URLQueryEscaper(apiKey.ID), http.StatusFound)
@@ -733,7 +728,7 @@ func formUpdateKeyHandler(store *admin.Store) http.HandlerFunc {
 			SortOrder:   parseOptionalInt(r.FormValue("sortOrder")),
 		})
 		if err != nil {
-			redirectAdminError(w, r, "保存 key 失败："+err.Error())
+			redirectAdminError(w, r, "保存密钥失败："+err.Error())
 			return
 		}
 		http.Redirect(w, r, "/admin?providerId="+template.URLQueryEscaper(providerID)+"&keyId="+template.URLQueryEscaper(r.FormValue("keyId")), http.StatusFound)
@@ -748,7 +743,7 @@ func formReorderKeysHandler(store *admin.Store) http.HandlerFunc {
 		}
 		providerID := r.FormValue("providerId")
 		if err := store.ReorderAPIKeys(r.Context(), providerID, r.Form["keyIds"]); err != nil {
-			redirectAdminError(w, r, "保存 key 排序失败："+err.Error())
+			redirectAdminError(w, r, "保存密钥排序失败："+err.Error())
 			return
 		}
 
@@ -771,7 +766,7 @@ func formDeleteKeyHandler(store *admin.Store) http.HandlerFunc {
 		}
 		providerID := r.FormValue("providerId")
 		if err := store.DeleteAPIKey(r.Context(), r.FormValue("keyId")); err != nil {
-			redirectAdminError(w, r, "删除 key 失败："+err.Error())
+			redirectAdminError(w, r, "删除密钥失败："+err.Error())
 			return
 		}
 		redirectToProvider(w, r, providerID)
