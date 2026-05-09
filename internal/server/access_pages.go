@@ -344,15 +344,40 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       const parsed = new DOMParser().parseFromString(html, 'text/html');
       const nextApp = parsed.querySelector('.app');
       const currentApp = document.querySelector('.app');
+      const nextBrand = parsed.querySelector('.brand');
+      const currentBrand = document.querySelector('.brand');
       if (!nextApp || !currentApp) {
         window.location.href = url || window.location.href;
         return;
       }
+      const currentAside = currentApp.querySelector('aside');
+      const asideScrollTop = currentAside ? currentAside.scrollTop : 0;
       currentApp.replaceWith(nextApp);
+      if (nextBrand && currentBrand) currentBrand.replaceWith(nextBrand);
+      if (parsed.title) document.title = parsed.title;
+      const nextAside = document.querySelector('.app aside');
+      if (nextAside) nextAside.scrollTop = asideScrollTop;
       if (url && url !== window.location.href) {
         window.history.pushState({}, '', url);
       }
       initAdminPage();
+    }
+
+    async function navigateAdmin(url) {
+      const app = document.querySelector('.app');
+      if (app) app.setAttribute('aria-busy', 'true');
+      try {
+        const response = await fetch(url, {
+          headers: { 'X-Requested-With': 'fetch' }
+        });
+        if (!response.ok) throw new Error('Navigation failed');
+        const html = await response.text();
+        replaceAdminApp(html, response.url);
+      } catch (error) {
+        window.location.href = url;
+      } finally {
+        if (app) app.removeAttribute('aria-busy');
+      }
     }
 
     async function submitAdminForm(form, submitter) {
@@ -380,12 +405,6 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     }
 
     function initAdminPage() {
-    document.querySelectorAll('.app form[method="post"]').forEach((form) => {
-      form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        submitAdminForm(form, event.submitter);
-      });
-    });
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
       if (!save) return;
@@ -418,6 +437,60 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         form.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
+    document.querySelectorAll('[data-sortable-keys]').forEach((form) => {
+      let dragged = null;
+      let changed = false;
+
+      form.querySelectorAll('[data-sortable-item]').forEach((item) => {
+        item.addEventListener('dragstart', (event) => {
+          dragged = item;
+          changed = false;
+          item.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', item.querySelector('input[name="keyIds"]').value);
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          if (changed) form.requestSubmit();
+          dragged = null;
+        });
+      });
+
+      form.addEventListener('dragover', (event) => {
+        if (!dragged) return;
+        event.preventDefault();
+        const target = event.target.closest('[data-sortable-item]');
+        if (!target || target === dragged || !form.contains(target)) return;
+        const rect = target.getBoundingClientRect();
+        const after = event.clientY > rect.top + rect.height / 2;
+        form.insertBefore(dragged, after ? target.nextSibling : target);
+        changed = true;
+      });
+      form.addEventListener('drop', (event) => {
+        if (dragged) event.preventDefault();
+      });
+    });
+    }
+    if (!window.__keychainAdminNavigationReady) {
+      window.__keychainAdminNavigationReady = true;
+      document.addEventListener('click', (event) => {
+        const link = event.target.closest('a[href]');
+        if (!link) return;
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        const url = new URL(link.href, window.location.href);
+        if (url.origin !== window.location.origin || !url.pathname.startsWith('/admin')) return;
+        event.preventDefault();
+        navigateAdmin(url.href);
+      });
+      document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!form.matches('.app form[method="post"]')) return;
+        event.preventDefault();
+        submitAdminForm(form, event.submitter);
+      });
+      window.addEventListener('popstate', () => {
+        navigateAdmin(window.location.href);
+      });
     }
     initAdminPage();
   </script>
