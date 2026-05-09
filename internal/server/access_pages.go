@@ -147,7 +147,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             {{range .Channels}}
               <a class="channel-link {{if .IsActive}}active{{end}}" href="/admin/access?channelId={{.Channel.ID}}">
                 <div class="meta-row"><strong>{{.Channel.Name}}</strong>{{if .Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}</div>
-                <div class="meta-row"><span class="muted small">{{.UserCount}} users · {{.Channel.DefaultPermissionMode}} · {{.Channel.UserManagementMode}}</span></div>
+                <div class="meta-row"><span class="muted small">{{.UserCount}}个用户 · {{.DefaultPermissionText}} · {{.UserManagementText}}</span></div>
               </a>
             {{else}}
               <div class="panel empty">还没有渠道。</div>
@@ -170,8 +170,8 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
             <section class="panel content">
               <div class="topline">
                 <div>
-                  <h2>{{.Selected.Channel.Name}}</h2>
-                  <p class="muted">{{.Selected.Channel.DefaultPermissionMode}} · {{.Selected.Channel.UserManagementMode}}</p>
+                  <h2>渠道详情</h2>
+                  <p class="muted">{{.Selected.Channel.Name}}</p>
                 </div>
                 {{if .Selected.Channel.IsEnabled}}<span class="tag">启用</span>{{else}}<span class="tag off">停用</span>{{end}}
               </div>
@@ -452,6 +452,20 @@ type channelNavItem struct {
 	Channel   admin.Channel
 	IsActive  bool
 	UserCount int
+}
+
+func (item channelNavItem) DefaultPermissionText() string {
+	if item.Channel.DefaultPermissionMode == "ALLOW" {
+		return "启用"
+	}
+	return "停用"
+}
+
+func (item channelNavItem) UserManagementText() string {
+	if item.Channel.UserManagementMode == "KEYCHAIN_HOSTED" {
+		return "托管用户系统"
+	}
+	return "外部用户系统"
 }
 
 type userPermissionProvider struct {
