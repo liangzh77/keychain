@@ -111,7 +111,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
 </head>
 <body>
   <header>
-    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab active" href="/admin/access">渠道与授权</a></div>
+    <div class="brand"><strong>Keychain</strong><span class="muted small">admin console</span><a class="tab" href="/admin">Providers</a><a class="tab active" href="/admin/access">渠道与授权</a><a class="tab" href="/admin/history">调用历史</a></div>
     <form method="post" action="/logout"><button class="ghost" type="submit">退出</button></form>
   </header>
   <div class="app">
@@ -428,6 +428,51 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         if (form) form.reset();
         details.open = false;
       });
+    });
+    document.querySelectorAll('[data-history-chart]').forEach((chart) => {
+      const points = Array.from(chart.querySelectorAll('[data-chart-point]')).map((point) => ({
+        node: point,
+        x: Number(point.dataset.x),
+        y: Number(point.dataset.y),
+        date: point.dataset.date || '',
+        total: point.dataset.total || '0',
+        failed: point.dataset.failed || '0'
+      }));
+      const hoverLine = chart.querySelector('[data-hover-line]');
+      const hoverTip = chart.querySelector('[data-hover-tip]');
+      const tipDate = chart.querySelector('[data-tip-date]');
+      const tipTotal = chart.querySelector('[data-tip-total]');
+      const tipFailed = chart.querySelector('[data-tip-failed]');
+      if (!points.length || !hoverLine || !hoverTip) return;
+      const hideHover = () => {
+        hoverLine.setAttribute('visibility', 'hidden');
+        hoverTip.setAttribute('visibility', 'hidden');
+        points.forEach((point) => point.node.setAttribute('r', '3.5'));
+      };
+      chart.addEventListener('pointermove', (event) => {
+        const ctm = chart.getScreenCTM();
+        if (!ctm) return;
+        const svgPoint = chart.createSVGPoint();
+        svgPoint.x = event.clientX;
+        svgPoint.y = event.clientY;
+        const cursor = svgPoint.matrixTransform(ctm.inverse());
+        let nearest = points[0];
+        for (const point of points) {
+          if (Math.abs(point.x - cursor.x) < Math.abs(nearest.x - cursor.x)) nearest = point;
+        }
+        points.forEach((point) => point.node.setAttribute('r', point === nearest ? '5.5' : '3.5'));
+        hoverLine.setAttribute('x1', nearest.x);
+        hoverLine.setAttribute('x2', nearest.x);
+        hoverLine.setAttribute('visibility', 'visible');
+        tipDate.textContent = nearest.date;
+        tipTotal.textContent = '总调用：' + nearest.total + ' 次';
+        tipFailed.textContent = '失败上报：' + nearest.failed + ' 次';
+        const tipX = Math.min(Math.max(nearest.x + 12, 78), 748);
+        const tipY = Math.max(34, nearest.y - 70);
+        hoverTip.setAttribute('transform', 'translate(' + tipX + ' ' + tipY + ')');
+        hoverTip.setAttribute('visibility', 'visible');
+      });
+      chart.addEventListener('pointerleave', hideHover);
     });
     document.querySelectorAll('[data-check-all], [data-check-none]').forEach((button) => {
       button.addEventListener('click', () => {
