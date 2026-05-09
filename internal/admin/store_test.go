@@ -290,6 +290,34 @@ func TestAccessDataAndPermissions(t *testing.T) {
 	if len(userRows) != 1 || !userRows[0].Allowed || !userRows[0].HasExplicit {
 		t.Fatalf("user permission rows = %#v", userRows)
 	}
+	apiKey, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "main-key",
+		SecretValue: "sk-main",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   1,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey() error = %v", err)
+	}
+	keyRows, err := store.ListUserKeyPermissionRows(context.Background(), users[0].ID, provider.ID)
+	if err != nil {
+		t.Fatalf("ListUserKeyPermissionRows() error = %v", err)
+	}
+	if len(keyRows) != 1 || keyRows[0].KeyID != apiKey.ID || !keyRows[0].Allowed || keyRows[0].HasExplicit {
+		t.Fatalf("default user key permission rows = %#v", keyRows)
+	}
+	if err := store.SetUserKeyPermission(context.Background(), users[0].ID, provider.ID, apiKey.ID, false); err != nil {
+		t.Fatalf("SetUserKeyPermission() error = %v", err)
+	}
+	keyRows, err = store.ListUserKeyPermissionRows(context.Background(), users[0].ID, provider.ID)
+	if err != nil {
+		t.Fatalf("ListUserKeyPermissionRows() after set error = %v", err)
+	}
+	if len(keyRows) != 1 || keyRows[0].Allowed || !keyRows[0].HasExplicit {
+		t.Fatalf("explicit user key permission rows = %#v", keyRows)
+	}
 }
 
 func TestRuntimeDispatchAndFailureReport(t *testing.T) {
@@ -381,6 +409,24 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	}
 	if secondDispatch.KeyID != second.ID {
 		t.Fatalf("second dispatch key id = %s, want %s", secondDispatch.KeyID, second.ID)
+	}
+	if err := store.SetUserKeyPermission(context.Background(), user.ID, provider.ID, first.ID, false); err != nil {
+		t.Fatalf("SetUserKeyPermission(first) error = %v", err)
+	}
+	if err := store.SetUserKeyPermission(context.Background(), user.ID, provider.ID, second.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission(second) error = %v", err)
+	}
+	filteredDispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
+		ChannelID:  channel.ID,
+		UserID:     user.ID,
+		ProviderID: provider.ID,
+		ModelID:    model.ID,
+	})
+	if err != nil {
+		t.Fatalf("DispatchRuntimeKey() filtered error = %v", err)
+	}
+	if filteredDispatch.KeyID != second.ID {
+		t.Fatalf("filtered dispatch key id = %s, want %s", filteredDispatch.KeyID, second.ID)
 	}
 
 	report, err := store.ReportRuntimeKeyFailure(context.Background(), dispatch.DispatchLogID, "rate_limit", "provider returned 429")

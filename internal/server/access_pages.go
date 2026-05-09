@@ -305,6 +305,30 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                               <button class="secondary" type="submit" data-save disabled>保存授权</button>
                             </span>
                           </form>
+                          <div class="pane-title" style="margin-top:12px"><span>Key 授权详情</span></div>
+                          {{if .SelectedUserProviderKeyPermissions}}
+                            <form class="model-permission-form" method="post" action="/admin/user-key-permissions" data-dirty-form>
+                              <input type="hidden" name="channelId" value="{{.Selected.Channel.ID}}">
+                              <input type="hidden" name="userId" value="{{.SelectedUser.ID}}">
+                              <input type="hidden" name="providerId" value="{{.SelectedUserPermProviderID}}">
+                              <div class="model-check-list">
+                                {{range .SelectedUserProviderKeyPermissions}}
+                                  <label class="model-check">
+                                    <span>{{.KeyAlias}}</span>
+                                    <input type="hidden" name="keyIds" value="{{.KeyID}}">
+                                    <input type="checkbox" name="allowedKeyIds" value="{{.KeyID}}" {{if .Allowed}}checked{{end}}>
+                                  </label>
+                                {{end}}
+                              </div>
+                              <span class="permission-actions">
+                                <span class="bulk-actions">
+                                  <button class="ghost" type="button" data-check-all>全选</button>
+                                  <button class="ghost" type="button" data-check-none>不选</button>
+                                </span>
+                                <button class="secondary" type="submit" data-save disabled>保存 Key 授权</button>
+                              </span>
+                            </form>
+                          {{else}}<div class="empty">这个 provider 还没有 key。</div>{{end}}
                         </div>
                       {{end}}
                     </div>
@@ -393,7 +417,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         const form = button.closest('form');
         if (!form) return;
         const checked = button.hasAttribute('data-check-all');
-        form.querySelectorAll('input[name="allowedModelIds"]').forEach((checkbox) => {
+        form.querySelectorAll('input[name="allowedModelIds"], input[name="allowedKeyIds"]').forEach((checkbox) => {
           checkbox.checked = checked;
         });
         form.dispatchEvent(new Event('change', { bubbles: true }));
@@ -406,21 +430,22 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
 </html>`))
 
 type accessPageData struct {
-	Username                        string
-	Error                           string
-	Channels                        []channelNavItem
-	Selected                        *channelPanel
-	SelectedUser                    *admin.User
-	SelectedUserID                  string
-	UserPermissions                 []admin.UserPermissionRow
-	UserPermissionProviders         []userPermissionProvider
-	SelectedUserProviderPermissions []admin.UserPermissionRow
-	SelectedChannelPermission       *admin.ChannelPermissionRow
-	SelectedPermProviderID          string
-	SelectedPermModelID             string
-	SelectedUserPermission          *admin.UserPermissionRow
-	SelectedUserPermProviderID      string
-	SelectedUserPermModelID         string
+	Username                           string
+	Error                              string
+	Channels                           []channelNavItem
+	Selected                           *channelPanel
+	SelectedUser                       *admin.User
+	SelectedUserID                     string
+	UserPermissions                    []admin.UserPermissionRow
+	UserPermissionProviders            []userPermissionProvider
+	SelectedUserProviderPermissions    []admin.UserPermissionRow
+	SelectedUserProviderKeyPermissions []admin.UserKeyPermissionRow
+	SelectedChannelPermission          *admin.ChannelPermissionRow
+	SelectedPermProviderID             string
+	SelectedPermModelID                string
+	SelectedUserPermission             *admin.UserPermissionRow
+	SelectedUserPermProviderID         string
+	SelectedUserPermModelID            string
 }
 
 type channelNavItem struct {
@@ -449,6 +474,7 @@ func registerAccessRoutes(mux *http.ServeMux, authService *auth.Service, store *
 	mux.HandleFunc("POST /admin/users/update", formUpdateUserHandler(store))
 	mux.HandleFunc("POST /admin/channel-permissions", formSetChannelPermissionHandler(store))
 	mux.HandleFunc("POST /admin/user-permissions", formSetUserPermissionHandler(store))
+	mux.HandleFunc("POST /admin/user-key-permissions", formSetUserKeyPermissionHandler(store))
 }
 
 func accessPageHandler(authService *auth.Service, store *admin.Store) http.HandlerFunc {
@@ -532,6 +558,10 @@ func loadAccessPageData(r *http.Request, store *admin.Store, data accessPageData
 						data.SelectedUserPermProviderID = data.UserPermissionProviders[0].ProviderID
 					}
 					data.SelectedUserProviderPermissions = filterUserPermissionsByProvider(data.UserPermissions, data.SelectedUserPermProviderID)
+					data.SelectedUserProviderKeyPermissions, err = store.ListUserKeyPermissionRows(r.Context(), user.ID, data.SelectedUserPermProviderID)
+					if err != nil {
+						return data, err
+					}
 					if data.SelectedUserPermModelID == "" && len(data.SelectedUserProviderPermissions) > 0 {
 						data.SelectedUserPermModelID = data.SelectedUserProviderPermissions[0].ModelID
 					}
@@ -720,6 +750,31 @@ func formSetUserPermissionHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		redirectAccessChannel(w, r, channelID, userID)
+	}
+}
+
+func formSetUserKeyPermissionHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectAccessError(w, r, "用户 Key 授权表单格式不正确")
+			return
+		}
+		channelID := r.FormValue("channelId")
+		userID := r.FormValue("userId")
+		providerID := r.FormValue("providerId")
+		keyIDs := r.Form["keyIds"]
+		allowedKeyIDs := make(map[string]bool, len(r.Form["allowedKeyIds"]))
+		for _, keyID := range r.Form["allowedKeyIds"] {
+			allowedKeyIDs[keyID] = true
+		}
+		for _, keyID := range keyIDs {
+			if err := store.SetUserKeyPermission(r.Context(), userID, providerID, keyID, allowedKeyIDs[keyID]); err != nil {
+				redirectAccessError(w, r, "保存用户 Key 授权失败："+err.Error())
+				return
+			}
+		}
+		url := "/admin/access?channelId=" + template.URLQueryEscaper(channelID) + "&userId=" + template.URLQueryEscaper(userID) + "&userPermProviderId=" + template.URLQueryEscaper(providerID)
+		http.Redirect(w, r, url, http.StatusFound)
 	}
 }
 

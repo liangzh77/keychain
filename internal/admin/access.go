@@ -45,6 +45,15 @@ type UserPermissionRow struct {
 	HasExplicit bool
 }
 
+type UserKeyPermissionRow struct {
+	ProviderID   string
+	ProviderName string
+	KeyID        string
+	KeyAlias     string
+	Allowed      bool
+	HasExplicit  bool
+}
+
 type CreateChannelInput struct {
 	Name                  string
 	Code                  string
@@ -273,6 +282,9 @@ func (store *Store) DeleteUser(ctx context.Context, id string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM dispatch_logs WHERE user_id = ?;`, id); err != nil {
 		return fmt.Errorf("delete user dispatch logs: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_key_permissions WHERE user_id = ?;`, id); err != nil {
+		return fmt.Errorf("delete user key permissions: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?;`, id); err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}
@@ -360,6 +372,70 @@ ON CONFLICT(user_id, provider_id, model_id)
 DO UPDATE SET allowed = excluded.allowed, updated_at = excluded.updated_at;
 `, newID("user_permission"), userID, providerID, modelID, boolToInt(allowed), now, now); err != nil {
 		return fmt.Errorf("set user permission: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListUserKeyPermissionRows(ctx context.Context, userID string, providerID string) ([]UserKeyPermissionRow, error) {
+	userID = strings.TrimSpace(userID)
+	providerID = strings.TrimSpace(providerID)
+	if userID == "" || providerID == "" {
+		return nil, fmt.Errorf("user id and provider id are required")
+	}
+	rows, err := store.db.QueryContext(ctx, `
+SELECT providers.id, providers.name, api_keys.id, api_keys.alias,
+  COALESCE(user_key_permissions.allowed, 1) AS allowed,
+  CASE WHEN user_key_permissions.id IS NULL THEN 0 ELSE 1 END AS has_explicit
+FROM api_keys
+JOIN providers ON providers.id = api_keys.provider_id
+LEFT JOIN user_key_permissions ON user_key_permissions.user_id = ? AND user_key_permissions.provider_id = providers.id AND user_key_permissions.key_id = api_keys.id
+WHERE api_keys.provider_id = ?
+ORDER BY api_keys.sort_order ASC, api_keys.created_at DESC, api_keys.alias ASC;
+`, userID, providerID)
+	if err != nil {
+		return nil, fmt.Errorf("list user key permission rows: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []UserKeyPermissionRow
+	for rows.Next() {
+		var permission UserKeyPermissionRow
+		var allowed, hasExplicit int
+		if err := rows.Scan(&permission.ProviderID, &permission.ProviderName, &permission.KeyID, &permission.KeyAlias, &allowed, &hasExplicit); err != nil {
+			return nil, fmt.Errorf("scan user key permission row: %w", err)
+		}
+		permission.Allowed = allowed == 1
+		permission.HasExplicit = hasExplicit == 1
+		permissions = append(permissions, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user key permission rows: %w", err)
+	}
+	return permissions, nil
+}
+
+func (store *Store) SetUserKeyPermission(ctx context.Context, userID string, providerID string, keyID string, allowed bool) error {
+	userID = strings.TrimSpace(userID)
+	providerID = strings.TrimSpace(providerID)
+	keyID = strings.TrimSpace(keyID)
+	if userID == "" || providerID == "" || keyID == "" {
+		return fmt.Errorf("user id, provider id and key id are required")
+	}
+	var keyProviderID string
+	if err := store.db.QueryRowContext(ctx, `SELECT provider_id FROM api_keys WHERE id = ?;`, keyID).Scan(&keyProviderID); err != nil {
+		return fmt.Errorf("read key provider: %w", wrapNotFound(err, "key not found"))
+	}
+	if keyProviderID != providerID {
+		return fmt.Errorf("key does not belong to provider")
+	}
+	now := formatTime(store.now())
+	if _, err := store.db.ExecContext(ctx, `
+INSERT INTO user_key_permissions (id, user_id, provider_id, key_id, allowed, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(user_id, provider_id, key_id)
+DO UPDATE SET allowed = excluded.allowed, updated_at = excluded.updated_at;
+`, newID("user_key_permission"), userID, providerID, keyID, boolToInt(allowed), now, now); err != nil {
+		return fmt.Errorf("set user key permission: %w", err)
 	}
 	return nil
 }

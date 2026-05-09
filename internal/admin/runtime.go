@@ -282,7 +282,7 @@ WHERE id = ?;
 		return DispatchKeyResult{}, fmt.Errorf("permission denied")
 	}
 
-	keys, err := availableKeysInTx(ctx, tx, input.ProviderID)
+	keys, err := availableKeysInTx(ctx, tx, input.ProviderID, input.UserID)
 	if err != nil {
 		return DispatchKeyResult{}, err
 	}
@@ -379,13 +379,15 @@ type runtimeKeyCandidate struct {
 	SecretValue string
 }
 
-func availableKeysInTx(ctx context.Context, tx *sql.Tx, providerID string) ([]runtimeKeyCandidate, error) {
+func availableKeysInTx(ctx context.Context, tx *sql.Tx, providerID string, userID string) ([]runtimeKeyCandidate, error) {
 	rows, err := tx.QueryContext(ctx, `
-SELECT id, alias, secret_value
+SELECT api_keys.id, api_keys.alias, api_keys.secret_value
 FROM api_keys
-WHERE provider_id = ? AND is_enabled = 1 AND is_available = 1
-ORDER BY sort_order ASC, created_at DESC, alias ASC;
-`, providerID)
+LEFT JOIN user_key_permissions ON user_key_permissions.user_id = ? AND user_key_permissions.provider_id = api_keys.provider_id AND user_key_permissions.key_id = api_keys.id
+WHERE api_keys.provider_id = ? AND api_keys.is_enabled = 1 AND api_keys.is_available = 1
+  AND COALESCE(user_key_permissions.allowed, 1) = 1
+ORDER BY api_keys.sort_order ASC, api_keys.created_at DESC, api_keys.alias ASC;
+`, userID, providerID)
 	if err != nil {
 		return nil, fmt.Errorf("list available keys: %w", err)
 	}

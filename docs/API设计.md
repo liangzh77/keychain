@@ -362,6 +362,7 @@ DELETE /api/channel-permission-defaults/:id
 ```http
 POST /api/bulk/channel-permissions
 POST /api/bulk/user-permissions
+POST /api/bulk/user-key-permissions
 POST /api/bulk/provider-permissions
 ```
 
@@ -379,6 +380,19 @@ POST /api/bulk/provider-permissions
   "allowed": true
 }
 ```
+
+用户 key 权限：
+
+```json
+{
+  "userId": "user_001",
+  "providerId": "provider_001",
+  "keyIds": ["key_001", "key_002"],
+  "allowedKeyIds": ["key_001"]
+}
+```
+
+未设置用户 key 权限时，运行时分发默认允许该 provider 下所有可用 key。设置后，分发只会从允许的 key 中选择。
 
 批量设置渠道默认权限：
 
@@ -534,6 +548,11 @@ GET /api/runtime/models?providerId=provider_001
   "key": "sk-real-key"
 }
 ```
+
+分发 key 时会同时检查：
+
+- 用户是否允许调用该 provider/model。
+- 用户在该 provider 下是否允许使用候选 key。没有显式 key 授权记录时默认允许。
 
 ### POST /api/runtime/dispatches/:dispatchLogId/failure
 

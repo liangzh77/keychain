@@ -107,6 +107,20 @@ CREATE TABLE user_permissions (
   UNIQUE (user_id, provider_id, model_id)
 );
 
+CREATE TABLE user_key_permissions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  key_id TEXT NOT NULL,
+  allowed INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE,
+  FOREIGN KEY (key_id) REFERENCES api_keys(id) ON DELETE CASCADE,
+  UNIQUE (user_id, provider_id, key_id)
+);
+
 CREATE TABLE dispatch_logs (
   id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL,
@@ -157,6 +171,7 @@ CREATE INDEX idx_api_keys_provider_available ON api_keys(provider_id, is_enabled
 CREATE INDEX idx_users_channel_id ON users(channel_id);
 CREATE INDEX idx_users_channel_external ON users(channel_id, external_user_id);
 CREATE INDEX idx_user_permissions_user ON user_permissions(user_id);
+CREATE INDEX idx_user_key_permissions_user_provider ON user_key_permissions(user_id, provider_id);
 CREATE INDEX idx_channel_permission_defaults_channel ON channel_permission_defaults(channel_id);
 CREATE INDEX idx_dispatch_logs_created_at ON dispatch_logs(created_at);
 CREATE INDEX idx_dispatch_logs_user ON dispatch_logs(user_id);
@@ -165,6 +180,27 @@ CREATE INDEX idx_dispatch_logs_provider_model ON dispatch_logs(provider_id, mode
 CREATE INDEX idx_dispatch_logs_key ON dispatch_logs(key_id);
 CREATE INDEX idx_failure_reports_dispatch_log ON failure_reports(dispatch_log_id);
 CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+`,
+	},
+	{
+		Version: 2,
+		Name:    "add_user_key_permissions",
+		SQL: `
+CREATE TABLE IF NOT EXISTS user_key_permissions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  key_id TEXT NOT NULL,
+  allowed INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE,
+  FOREIGN KEY (key_id) REFERENCES api_keys(id) ON DELETE CASCADE,
+  UNIQUE (user_id, provider_id, key_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_key_permissions_user_provider ON user_key_permissions(user_id, provider_id);
 `,
 	},
 }
