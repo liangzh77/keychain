@@ -568,6 +568,7 @@ func shouldMarkKeyUnavailable(errorCode string, errorMessage string) bool {
 		transientQueueSignals := []string{
 			"任务队列已满",
 			"队列已满",
+			"apikey_task_not_found",
 			"queue full",
 			"queue is full",
 			"task queue is full",
