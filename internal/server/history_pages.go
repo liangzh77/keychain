@@ -52,7 +52,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
     .topline { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 14px; }
     .filter-grid { display: grid; gap: 10px; }
     .filter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .stats-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
     .stat { padding: 13px 14px; }
     .stat strong { display: block; font-size: 24px; line-height: 1.1; margin-bottom: 4px; }
     .stat span { color: var(--muted); font-size: 12px; font-weight: 700; }
@@ -167,15 +167,13 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
       <div class="topline">
         <div>
           <h1>调用历史</h1>
-          <p class="muted small">查看密钥分发、失败上报和调用量趋势。</p>
+          <p class="muted small">查看 Key 调用记录、失败情况和调用量趋势。</p>
         </div>
       </div>
       <section class="stats-grid">
         <div class="panel stat"><strong>{{.Stats.TotalCount}}</strong><span>总调用</span></div>
-        <div class="panel stat"><strong>{{.Stats.SuccessCount}}</strong><span>成功分发</span></div>
-        <div class="panel stat"><strong>{{.Stats.FailedCount}}</strong><span>失败上报</span></div>
-        <div class="panel stat"><strong>{{.Stats.UniqueUserCount}}</strong><span>涉及用户</span></div>
-        <div class="panel stat"><strong>{{.Stats.UniqueKeyCount}}</strong><span>涉及 Key</span></div>
+        <div class="panel stat"><strong>{{.Stats.SuccessCount}}</strong><span>成功调用</span></div>
+        <div class="panel stat"><strong>{{.Stats.FailedCount}}</strong><span>失败调用</span></div>
       </section>
       <section class="panel content chart-card">
         <div class="topline">
@@ -186,7 +184,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
           <div class="chart-header-tools">
             <div class="legend" aria-label="图例">
               <span class="legend-item"><span class="legend-swatch"></span>总调用</span>
-              <span class="legend-item"><span class="legend-swatch warn"></span>失败上报</span>
+              <span class="legend-item"><span class="legend-swatch warn"></span>失败调用</span>
             </div>
             <span class="tag">{{.Stats.FailureRatePercent}}% 失败率</span>
           </div>
@@ -385,7 +383,7 @@ var historyPageTemplate = template.Must(template.New("history").Parse(`<!doctype
           hoverLine.setAttribute('visibility', 'visible');
           tipDate.textContent = nearest.date;
           tipTotal.textContent = '总调用：' + nearest.total + ' 次';
-          tipFailed.textContent = '失败上报：' + nearest.failed + ' 次';
+          tipFailed.textContent = '失败调用：' + nearest.failed + ' 次';
           const tipX = Math.min(Math.max(nearest.x + 12, 78), 748);
           const tipY = Math.max(34, nearest.y - 70);
           hoverTip.setAttribute('transform', 'translate(' + tipX + ' ' + tipY + ')');
@@ -551,8 +549,8 @@ func loadHistoryPageData(r *http.Request, store *admin.Store) (historyPageData, 
 		},
 		StatusOptions: []selectOption{
 			{Value: "", Label: "全部状态", Active: filter.Status == ""},
-			{Value: "DISPATCHED", Label: "成功分发", Active: filter.Status == "DISPATCHED"},
-			{Value: "FAILED", Label: "失败上报", Active: filter.Status == "FAILED"},
+			{Value: "DISPATCHED", Label: "成功调用", Active: filter.Status == "DISPATCHED"},
+			{Value: "FAILED", Label: "失败调用", Active: filter.Status == "FAILED"},
 		},
 		SortOptions: []selectOption{
 			{Value: "desc", Label: "最新在前", Active: filter.Sort != "asc"},
@@ -700,12 +698,12 @@ func buildHistoryRows(rows []admin.DispatchHistoryRow) []historyRowView {
 		view := historyRowView{
 			DispatchHistoryRow: row,
 			CreatedAtText:      compactHistoryTime(row.CreatedAt),
-			StatusText:         "成功分发",
+			StatusText:         "成功调用",
 			IsFailed:           row.Status == "FAILED",
 			FailureText:        "-",
 		}
 		if view.IsFailed {
-			view.StatusText = "失败上报"
+			view.StatusText = "失败调用"
 			parts := make([]string, 0, 2)
 			if row.FailureErrorCode != nil && *row.FailureErrorCode != "" {
 				parts = append(parts, *row.FailureErrorCode)

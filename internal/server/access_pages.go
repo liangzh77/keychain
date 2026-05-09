@@ -466,7 +466,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         hoverLine.setAttribute('visibility', 'visible');
         tipDate.textContent = nearest.date;
         tipTotal.textContent = '总调用：' + nearest.total + ' 次';
-        tipFailed.textContent = '失败上报：' + nearest.failed + ' 次';
+        tipFailed.textContent = '失败调用：' + nearest.failed + ' 次';
         const tipX = Math.min(Math.max(nearest.x + 12, 78), 748);
         const tipY = Math.max(34, nearest.y - 70);
         hoverTip.setAttribute('transform', 'translate(' + tipX + ' ' + tipY + ')');
