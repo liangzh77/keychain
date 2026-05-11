@@ -92,6 +92,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: stretch; }
     .resource-grid > .panel { min-height: 430px; height: 100%; }
     .detail-grid { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .model-detail-grid { grid-template-columns: minmax(260px, 1.35fr) minmax(176px, .65fr); }
     .detail-form { display: grid; gap: 10px; align-items: end; }
     .key-form { grid-template-columns: minmax(140px, 1fr) minmax(220px, 1.4fr) auto auto; }
     .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
@@ -134,6 +135,8 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .detail-form.key-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .detail-form.key-form .actions { grid-column: 1 / -1; }
     .detail-form.model-form { grid-template-columns: minmax(0, 1fr) 90px 104px; }
+    .model-detail-grid .detail-form.model-form { grid-template-columns: minmax(0, 1fr); }
+    .model-detail-grid .detail-form.model-form .actions { justify-content: flex-start; }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
     .tag.off { background: #e9e4db; color: #746f66; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff6df; color: #7a5a22; }
@@ -142,7 +145,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     @media (max-width: 1320px) { .resource-grid { grid-template-columns: 1fr; } .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .settings-grid .actions { justify-content: flex-start; } }
     @media (max-width: 1120px) { .key-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .settings-grid, .detail-form, .key-form, .model-form { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } }
-    @media (max-width: 760px) { .detail-grid, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
+    @media (max-width: 760px) { .detail-grid, .model-detail-grid, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
 </head>
 <body>
@@ -237,7 +240,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               </details>
             </div>
             {{if .Selected.Models}}
-              <div class="detail-grid" style="margin-top:12px">
+              <div class="detail-grid model-detail-grid" style="margin-top:12px">
                 <div class="pane">
                   <div class="pane-title"><span>Model 列表</span></div>
                   <div class="compact-list scroll-list">
