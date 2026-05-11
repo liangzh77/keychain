@@ -76,8 +76,8 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	}
 
 	failure := postRuntime[keyFailureResponse](t, handler, "/api/runtime/dispatches/"+dispatch.DispatchLogID+"/failure", map[string]any{
-		"errorCode":    "rate_limit",
-		"errorMessage": "provider returned 429",
+		"errorCode":    "quota_exceeded",
+		"errorMessage": "provider quota exceeded",
 	})
 	if !failure.Reported || failure.IsAvailable {
 		t.Fatalf("failure = %#v, want reported unavailable", failure)

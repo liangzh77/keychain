@@ -564,23 +564,47 @@ WHERE id = ?;
 func shouldMarkKeyUnavailable(errorCode string, errorMessage string) bool {
 	normalizedCode := strings.ToLower(strings.TrimSpace(errorCode))
 	normalizedMessage := strings.ToLower(strings.TrimSpace(errorMessage))
-	if normalizedCode == "provider_error" {
-		transientQueueSignals := []string{
-			"任务队列已满",
-			"队列已满",
-			"apikey_task_not_found",
-			"queue full",
-			"queue is full",
-			"task queue is full",
-			"queue busy",
-		}
-		for _, signal := range transientQueueSignals {
-			if strings.Contains(normalizedMessage, signal) {
-				return false
-			}
+	keyExhaustionCodes := []string{
+		"quota_exceeded",
+		"quota_exhausted",
+		"insufficient_quota",
+		"insufficient_balance",
+		"balance_exhausted",
+		"credits_exhausted",
+	}
+	for _, code := range keyExhaustionCodes {
+		if normalizedCode == code {
+			return true
 		}
 	}
-	return true
+
+	keyExhaustionSignals := []string{
+		"额度不足",
+		"额度已用完",
+		"额度耗尽",
+		"余额不足",
+		"余额已用完",
+		"余额耗尽",
+		"点数不足",
+		"点数已用完",
+		"点数耗尽",
+		"credits exhausted",
+		"credit exhausted",
+		"insufficient credits",
+		"insufficient credit",
+		"insufficient quota",
+		"quota exceeded",
+		"quota exhausted",
+		"insufficient balance",
+		"balance exhausted",
+	}
+	for _, signal := range keyExhaustionSignals {
+		if strings.Contains(normalizedMessage, signal) {
+			return true
+		}
+	}
+
+	return false
 }
 
 type runtimeKeyCandidate struct {

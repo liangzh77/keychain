@@ -646,8 +646,8 @@ GET /api/runtime/models?providerId=provider_001
 
 ```json
 {
-  "errorCode": "rate_limit",
-  "errorMessage": "provider returned 429"
+  "errorCode": "quota_exceeded",
+  "errorMessage": "provider quota exceeded"
 }
 ```
 
@@ -663,3 +663,5 @@ GET /api/runtime/models?providerId=provider_001
 ```
 
 `isAvailable` 表示失败上报后该 key 当前是否仍被系统认为可用。
+
+失败上报一定会记录失败历史。只有当 `errorCode` 或 `errorMessage` 明确表示 key 的额度、余额、点数已经耗尽时，Keychain 才会把该 key 标记为不可用；任务队列已满、任务被取消、任务不存在、文件大小超限、参数错误等请求级或临时错误不会禁用 key。

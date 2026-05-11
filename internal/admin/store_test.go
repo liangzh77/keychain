@@ -435,7 +435,7 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		t.Fatalf("filtered dispatch key id = %s, want %s", filteredDispatch.KeyID, second.ID)
 	}
 
-	report, err := store.ReportRuntimeKeyFailure(context.Background(), dispatch.DispatchLogID, "rate_limit", "provider returned 429")
+	report, err := store.ReportRuntimeKeyFailure(context.Background(), dispatch.DispatchLogID, "quota_exceeded", "provider quota exceeded")
 	if err != nil {
 		t.Fatalf("ReportRuntimeKeyFailure() error = %v", err)
 	}
@@ -640,6 +640,60 @@ func TestTaskNotFoundFailureDoesNotDisableKey(t *testing.T) {
 	}
 	if len(keys) != 1 || keys[0].ID != key.ID || !keys[0].IsAvailable || keys[0].FailureCount != 0 {
 		t.Fatalf("key after task not found report = %#v", keys)
+	}
+}
+
+func TestShouldMarkKeyUnavailableOnlyForQuotaExhaustion(t *testing.T) {
+	tests := []struct {
+		name    string
+		code    string
+		message string
+		want    bool
+	}{
+		{
+			name:    "file size limit is request level",
+			code:    "provider_error",
+			message: "Error: [portrait_animator] 文件大小超过 10MB 限制: 10.7MB",
+			want:    false,
+		},
+		{
+			name:    "queue full is transient",
+			code:    "provider_error",
+			message: "Error: [portrait_animator] 任务队列已满，请稍后重试",
+			want:    false,
+		},
+		{
+			name:    "manual cancel task not found is request level",
+			code:    "provider_error",
+			message: "Error: [portrait_animator] 查询失败: APIKEY_TASK_NOT_FOUND",
+			want:    false,
+		},
+		{
+			name:    "quota code disables key",
+			code:    "quota_exceeded",
+			message: "provider returned an error",
+			want:    true,
+		},
+		{
+			name:    "chinese balance message disables key",
+			code:    "provider_error",
+			message: "RunningHub 账户余额不足",
+			want:    true,
+		},
+		{
+			name:    "english quota message disables key",
+			code:    "provider_error",
+			message: "insufficient quota for this API key",
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldMarkKeyUnavailable(tt.code, tt.message); got != tt.want {
+				t.Fatalf("shouldMarkKeyUnavailable(%q, %q) = %v, want %v", tt.code, tt.message, got, tt.want)
+			}
+		})
 	}
 }
 
