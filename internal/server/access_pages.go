@@ -75,8 +75,9 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .user-form { grid-template-columns: minmax(0, 1fr) auto auto; }
     .access-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
     .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
-    .channel-permission-split { grid-template-columns: minmax(198px, 300px) minmax(0, 1fr); }
-    .user-permission-split { grid-template-columns: minmax(132px, 160px) minmax(0, 1fr); }
+    .channel-permission-split { grid-template-columns: minmax(238px, 360px) minmax(0, 1fr); }
+    .user-list-split { grid-template-columns: minmax(106px, 160px) minmax(0, 1fr); }
+    .user-permission-split { grid-template-columns: minmax(185px, 224px) minmax(0, 1fr); }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
     .section-title h2 { font-size: 18px; line-height: 1.2; font-weight: 700; }
@@ -110,7 +111,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .tag.off { background: #e9e4db; color: #746f66; }
     @media (max-width: 1320px) { .access-grid { grid-template-columns: 1fr; } .channel-form, .perm-form, .detail-form.user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions, .user-actions { justify-content: flex-start; } }
     @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; } .actions, .user-actions { justify-content: flex-start; } }
-    @media (max-width: 760px) { .split, .channel-permission-split, .user-permission-split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
+    @media (max-width: 760px) { .split, .channel-permission-split, .user-list-split, .user-permission-split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
 </head>
 <body>
@@ -243,7 +244,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                 <p class="muted small">用户由外部应用通过 API 创建；这里仅维护已有用户和授权。</p>
               </div>
             </div>
-            <div class="split" style="margin-top:12px">
+            <div class="split user-list-split" style="margin-top:12px">
               <div class="pane">
                 <div class="pane-title"><span>用户列表</span></div>
                 <div class="user-list scroll-list">

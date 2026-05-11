@@ -92,7 +92,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: stretch; }
     .resource-grid > .panel { min-height: 430px; height: 100%; }
     .detail-grid { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
-    .model-detail-grid { grid-template-columns: minmax(300px, 7fr) minmax(168px, 3fr); }
+    .model-detail-grid { grid-template-columns: minmax(180px, 4.2fr) minmax(168px, 5.8fr); }
     .detail-form { display: grid; gap: 10px; align-items: end; }
     .key-form { grid-template-columns: minmax(140px, 1fr) minmax(220px, 1.4fr) auto auto; }
     .model-form { grid-template-columns: minmax(0, 1fr) 120px 120px; }
@@ -132,7 +132,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .pane-title span { margin-right: auto; margin-left: 8px; }
     .actions { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
     .inline-checks { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
-    .detail-form.key-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .detail-form.key-form { grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); }
     .detail-form.key-form .actions { grid-column: 1 / -1; }
     .detail-form.model-form { grid-template-columns: minmax(0, 1fr) 90px 104px; }
     .model-detail-grid .detail-form.model-form { grid-template-columns: minmax(0, 1fr); }
