@@ -638,7 +638,7 @@ GET /api/runtime/models?providerId=provider_001
 分发 key 时会同时检查：
 
 - 用户是否启用。
-- 用户是否显式允许调用该 provider/model。没有显式模型授权记录时默认拒绝。
+- 用户是否显式允许调用该 provider/model。没有显式模型授权记录时默认拒绝，并返回 `model permission denied`。
 - 用户在该 provider 下是否允许使用候选 key。没有显式 key 授权记录时默认拒绝。
 
 ### POST /api/runtime/dispatches/:dispatchLogId/failure

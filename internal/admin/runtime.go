@@ -455,7 +455,7 @@ WHERE id = ?;
 		return DispatchKeyResult{}, err
 	}
 	if !allowed {
-		return DispatchKeyResult{}, fmt.Errorf("permission denied")
+		return DispatchKeyResult{}, fmt.Errorf("model permission denied")
 	}
 
 	keys, err := availableKeysInTx(ctx, tx, input.ProviderID, input.UserID)

@@ -397,8 +397,8 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 		ProviderID:  provider.ID,
 		ModelID:     model.ID,
 	})
-	if err == nil || err.Error() != "permission denied" {
-		t.Fatalf("DispatchRuntimeKey() without user model permission error = %v, want permission denied", err)
+	if err == nil || err.Error() != "model permission denied" {
+		t.Fatalf("DispatchRuntimeKey() without user model permission error = %v, want model permission denied", err)
 	}
 	if err := store.SetUserPermission(context.Background(), user.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetUserPermission() error = %v", err)
