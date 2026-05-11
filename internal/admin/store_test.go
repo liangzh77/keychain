@@ -391,6 +391,18 @@ func TestRuntimeDispatchAndFailureReport(t *testing.T) {
 	if err := store.SetUserKeyPermission(context.Background(), user.ID, provider.ID, second.ID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission(second allow) error = %v", err)
 	}
+	_, err = store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
+		ChannelName: channel.Name,
+		UserID:      user.ID,
+		ProviderID:  provider.ID,
+		ModelID:     model.ID,
+	})
+	if err == nil || err.Error() != "permission denied" {
+		t.Fatalf("DispatchRuntimeKey() without user model permission error = %v, want permission denied", err)
+	}
+	if err := store.SetUserPermission(context.Background(), user.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
+	}
 
 	dispatch, err := store.DispatchRuntimeKey(context.Background(), DispatchKeyInput{
 		ChannelName: channel.Name,
@@ -523,6 +535,9 @@ func TestQueueFullFailureDoesNotDisableKey(t *testing.T) {
 	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
 	}
+	if err := store.SetUserPermission(ctx, user.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
+	}
 	if err := store.SetUserKeyPermission(ctx, user.ID, provider.ID, key.ID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission() error = %v", err)
 	}
@@ -613,6 +628,9 @@ func TestTaskNotFoundFailureDoesNotDisableKey(t *testing.T) {
 	}
 	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
+	}
+	if err := store.SetUserPermission(ctx, user.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
 	}
 	if err := store.SetUserKeyPermission(ctx, user.ID, provider.ID, key.ID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission() error = %v", err)

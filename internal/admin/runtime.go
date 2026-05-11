@@ -347,13 +347,11 @@ func (store *Store) ListEffectiveUserPermissions(ctx context.Context, userID str
 	}
 	rows, err := store.db.QueryContext(ctx, `
 SELECT providers.id, providers.name, models.id, models.name,
-  COALESCE(user_permissions.allowed, channel_permission_defaults.default_allowed,
-    CASE WHEN channels.default_permission_mode = 'ALLOW' THEN 1 ELSE 0 END) AS allowed
+  COALESCE(user_permissions.allowed, 0) AS allowed
 FROM providers
 JOIN models ON models.provider_id = providers.id
 JOIN channels ON channels.id = ?
 LEFT JOIN user_permissions ON user_permissions.user_id = ? AND user_permissions.provider_id = providers.id AND user_permissions.model_id = models.id
-LEFT JOIN channel_permission_defaults ON channel_permission_defaults.channel_id = channels.id AND channel_permission_defaults.provider_id = providers.id AND channel_permission_defaults.model_id = models.id
 WHERE providers.is_enabled = 1 AND models.is_enabled = 1
 ORDER BY providers.name ASC, models.name ASC;
 `, channel.ID, user.ID)
@@ -452,7 +450,7 @@ WHERE id = ?;
 		return DispatchKeyResult{}, fmt.Errorf("model is disabled")
 	}
 
-	allowed, err := effectivePermissionInTx(ctx, tx, channelID, input.UserID, input.ProviderID, input.ModelID, defaultMode)
+	allowed, err := userModelPermissionAllowedInTx(ctx, tx, input.UserID, input.ProviderID, input.ModelID)
 	if err != nil {
 		return DispatchKeyResult{}, err
 	}
@@ -667,6 +665,22 @@ WHERE channel_id = ? AND provider_id = ? AND model_id = ?;
 		return false, fmt.Errorf("read channel permission default: %w", err)
 	}
 	return defaultMode == "ALLOW", nil
+}
+
+func userModelPermissionAllowedInTx(ctx context.Context, tx *sql.Tx, userID string, providerID string, modelID string) (bool, error) {
+	var allowed int
+	err := tx.QueryRowContext(ctx, `
+SELECT allowed
+FROM user_permissions
+WHERE user_id = ? AND provider_id = ? AND model_id = ?;
+`, userID, providerID, modelID).Scan(&allowed)
+	if err == nil {
+		return allowed == 1, nil
+	}
+	if err != sql.ErrNoRows {
+		return false, fmt.Errorf("read user permission: %w", err)
+	}
+	return false, nil
 }
 
 func (store *Store) lookupEnabledChannel(ctx context.Context, channelName string) (Channel, error) {

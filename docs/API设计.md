@@ -576,6 +576,8 @@ Authorization: Bearer <RUNTIME_API_TOKEN>
 
 查询用户权限。
 
+该接口只反映用户对 provider/model 的显式模型授权。没有用户显式授权记录时，`allowed` 为 `false`；渠道默认授权不会折算成用户模型授权。
+
 响应：
 
 ```json
@@ -635,7 +637,8 @@ GET /api/runtime/models?providerId=provider_001
 
 分发 key 时会同时检查：
 
-- 用户是否允许调用该 provider/model。
+- 用户是否启用。
+- 用户是否显式允许调用该 provider/model。没有显式模型授权记录时默认拒绝。
 - 用户在该 provider 下是否允许使用候选 key。没有显式 key 授权记录时默认拒绝。
 
 ### POST /api/runtime/dispatches/:dispatchLogId/failure

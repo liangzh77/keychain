@@ -49,6 +49,9 @@ func TestRuntimeAPIFlow(t *testing.T) {
 	if err := fixtures.Store.SetUserKeyPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.KeyID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission() error = %v", err)
 	}
+	if err := fixtures.Store.SetUserPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.ModelID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
+	}
 
 	permissionsRequest := httptest.NewRequest(http.MethodGet, "/api/runtime/users/"+userResponse.ID+"/permissions", nil)
 	permissionsRequest.Header.Set("Authorization", "Bearer test-runtime-token")
@@ -102,6 +105,9 @@ func TestRuntimeDispatchDisabledUserReturnsClearError(t *testing.T) {
 	})
 	if err := fixtures.Store.SetUserKeyPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.KeyID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission() error = %v", err)
+	}
+	if err := fixtures.Store.SetUserPermission(context.Background(), userResponse.ID, fixtures.ProviderID, fixtures.ModelID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
 	}
 
 	request := httptest.NewRequest(http.MethodPost, "/api/runtime/dispatches", bytes.NewReader([]byte(`{

@@ -71,6 +71,9 @@ func TestDispatchHistoryQueries(t *testing.T) {
 	if err := store.SetChannelPermissionDefault(ctx, channel.ID, provider.ID, model.ID, true); err != nil {
 		t.Fatalf("SetChannelPermissionDefault() error = %v", err)
 	}
+	if err := store.SetUserPermission(ctx, user.ID, provider.ID, model.ID, true); err != nil {
+		t.Fatalf("SetUserPermission() error = %v", err)
+	}
 	if err := store.SetUserKeyPermission(ctx, user.ID, provider.ID, first.ID, true); err != nil {
 		t.Fatalf("SetUserKeyPermission(first) error = %v", err)
 	}
