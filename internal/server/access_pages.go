@@ -75,6 +75,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .user-form { grid-template-columns: minmax(0, 1fr) auto auto; }
     .access-grid { display: grid; grid-template-columns: repeat(2, minmax(360px, 1fr)); gap: 12px; align-items: start; }
     .split { display: grid; grid-template-columns: minmax(132px, 200px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .channel-permission-split { grid-template-columns: minmax(198px, 300px) minmax(0, 1fr); }
     .user-permission-split { grid-template-columns: minmax(132px, 160px) minmax(0, 1fr); }
     .detail-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
     .section-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
@@ -109,7 +110,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .tag.off { background: #e9e4db; color: #746f66; }
     @media (max-width: 1320px) { .access-grid { grid-template-columns: 1fr; } .channel-form, .perm-form, .detail-form.user-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .actions, .user-actions { justify-content: flex-start; } }
     @media (max-width: 980px) { .app { grid-template-columns: 1fr; height: auto; overflow: visible; } aside, main { overflow: visible; } .form-grid, .detail-form, .channel-form, .user-form, .perm-form { grid-template-columns: 1fr; } .actions, .user-actions { justify-content: flex-start; } }
-    @media (max-width: 760px) { .split, .user-permission-split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
+    @media (max-width: 760px) { .split, .channel-permission-split, .user-permission-split, .section-title { grid-template-columns: 1fr; } .topline { flex-direction: column; align-items: stretch; } .section-title > details.add-panel > summary { width: 100%; margin-left: 0; } }
   </style>
 </head>
 <body>
@@ -207,7 +208,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
               </div>
             </div>
             {{if .Selected.ChannelPermissions}}
-              <div class="split" style="margin-top:12px">
+              <div class="split channel-permission-split" style="margin-top:12px">
                 <div class="pane">
                   <div class="pane-title"><span>授权列表</span></div>
                   <div class="row-list scroll-list">
