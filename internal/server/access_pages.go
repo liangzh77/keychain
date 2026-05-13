@@ -105,6 +105,13 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     .model-check-list { display: grid; gap: 8px; max-height: 276px; overflow-y: auto; padding-right: 2px; }
     .model-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: #fffdf8; font-size: 13px; font-weight: 700; color: var(--text); }
     .model-check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .modal-backdrop[hidden] { display: none; }
+    .modal-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(36, 40, 36, .28); z-index: 20; }
+    .modal { width: min(420px, 100%); padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 18px 52px rgba(52,45,33,.16); }
+    .modal h3 { font-size: 18px; margin-bottom: 8px; }
+    .modal p { color: var(--muted); line-height: 1.5; }
+    .modal strong { color: var(--text); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
     .notice { margin-bottom: 14px; padding: 10px 12px; border-radius: 6px; background: #fff6df; color: #7a5a22; }
     .empty { padding: 28px; text-align: center; color: var(--muted); }
     .tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
@@ -268,7 +275,7 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                     <span class="user-actions">
                       <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
                       <button class="secondary" type="submit" data-save disabled>保存用户</button>
-                      <button class="danger" type="submit" form="delete-user-{{.SelectedUser.ID}}">删除</button>
+                      <button class="danger" type="button" data-delete-user form="delete-user-{{.SelectedUser.ID}}" data-user-name="{{.SelectedUser.DisplayName}}">删除</button>
                     </span>
                   </form>
                   <form id="delete-user-{{.SelectedUser.ID}}" method="post" action="/admin/users/delete">
@@ -349,6 +356,16 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       {{end}}
     </main>
   </div>
+  <div class="modal-backdrop" data-delete-user-modal hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
+      <h3 id="delete-user-title">确认删除用户</h3>
+      <p>将删除用户 <strong data-delete-user-name></strong>，并清理这个用户的授权、Key 授权、调用记录和托管凭据。</p>
+      <div class="modal-actions">
+        <button class="ghost" type="button" data-cancel-delete-user>取消</button>
+        <button class="danger" type="button" data-confirm-delete-user>确认删除</button>
+      </div>
+    </div>
+  </div>
   <script>
     function replaceAdminApp(html, url) {
       const parsed = new DOMParser().parseFromString(html, 'text/html');
@@ -418,6 +435,40 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
     }
 
     function initAdminPage() {
+    const deleteModal = document.querySelector('[data-delete-user-modal]');
+    const closeDeleteModal = () => {
+      if (!deleteModal) return;
+      deleteModal.hidden = true;
+      deleteModal.dataset.formId = '';
+    };
+    document.querySelectorAll('[data-delete-user]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (!deleteModal) return;
+        deleteModal.dataset.formId = button.getAttribute('form') || '';
+        const name = deleteModal.querySelector('[data-delete-user-name]');
+        if (name) name.textContent = button.dataset.userName || '这个用户';
+        deleteModal.hidden = false;
+        const cancel = deleteModal.querySelector('[data-cancel-delete-user]');
+        if (cancel) cancel.focus();
+      });
+    });
+    if (deleteModal && !deleteModal.dataset.ready) {
+      deleteModal.dataset.ready = '1';
+      deleteModal.addEventListener('click', (event) => {
+        if (event.target === deleteModal) closeDeleteModal();
+      });
+      const cancel = deleteModal.querySelector('[data-cancel-delete-user]');
+      if (cancel) cancel.addEventListener('click', closeDeleteModal);
+      const confirm = deleteModal.querySelector('[data-confirm-delete-user]');
+      if (confirm) {
+        confirm.addEventListener('click', () => {
+          const formID = deleteModal.dataset.formId || '';
+          const form = formID ? document.getElementById(formID) : null;
+          closeDeleteModal();
+          if (form) form.requestSubmit();
+        });
+      }
+    }
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
       if (!save) return;
@@ -566,6 +617,12 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       });
       window.addEventListener('popstate', () => {
         navigateAdmin(window.location.href);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          const modal = document.querySelector('[data-delete-user-modal]');
+          if (modal && !modal.hidden) modal.hidden = true;
+        }
       });
     }
     initAdminPage();
