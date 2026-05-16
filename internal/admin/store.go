@@ -50,6 +50,12 @@ type APIKey struct {
 	LastFailedAt *string `json:"lastFailedAt"`
 }
 
+type ProviderCount struct {
+	ProviderID string
+	ModelCount int
+	KeyCount   int
+}
+
 type CreateProviderInput struct {
 	Name             string
 	Code             string
@@ -129,6 +135,33 @@ ORDER BY created_at DESC, name ASC;
 		return nil, fmt.Errorf("iterate providers: %w", err)
 	}
 	return providers, nil
+}
+
+func (store *Store) ListProviderCounts(ctx context.Context) (map[string]ProviderCount, error) {
+	rows, err := store.db.QueryContext(ctx, `
+SELECT providers.id, COUNT(DISTINCT models.id), COUNT(DISTINCT api_keys.id)
+FROM providers
+LEFT JOIN models ON models.provider_id = providers.id
+LEFT JOIN api_keys ON api_keys.provider_id = providers.id
+GROUP BY providers.id;
+`)
+	if err != nil {
+		return nil, fmt.Errorf("list provider counts: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[string]ProviderCount)
+	for rows.Next() {
+		var count ProviderCount
+		if err := rows.Scan(&count.ProviderID, &count.ModelCount, &count.KeyCount); err != nil {
+			return nil, fmt.Errorf("scan provider count: %w", err)
+		}
+		counts[count.ProviderID] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate provider counts: %w", err)
+	}
+	return counts, nil
 }
 
 func (store *Store) CreateProvider(ctx context.Context, input CreateProviderInput) (Provider, error) {

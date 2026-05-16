@@ -74,6 +74,14 @@ func TestProviderModelKeyFlow(t *testing.T) {
 		t.Fatalf("listed masked value leaks secret: %s", keys[0].MaskedValue)
 	}
 
+	counts, err := store.ListProviderCounts(context.Background())
+	if err != nil {
+		t.Fatalf("ListProviderCounts() error = %v", err)
+	}
+	if counts[provider.ID].ModelCount != 1 || counts[provider.ID].KeyCount != 1 {
+		t.Fatalf("provider counts = %#v, want 1 model and 1 key", counts[provider.ID])
+	}
+
 	secretValue, err := store.GetAPIKeySecret(context.Background(), key.ID)
 	if err != nil {
 		t.Fatalf("GetAPIKeySecret() error = %v", err)

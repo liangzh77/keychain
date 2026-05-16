@@ -308,7 +308,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                   <input type="hidden" name="modelId" value="{{.SelectedModelID}}">
                   {{range .Selected.Keys}}
                     <div class="sortable-item" draggable="true" data-sortable-item>
-                      <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" draggable="false" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
+                      <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" draggable="false" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}" data-key-link data-key-id="{{.ID}}" data-key-alias="{{.Alias}}" data-key-masked="{{.MaskedValue}}" data-key-sort-order="{{.SortOrder}}" data-key-is-enabled="{{.IsEnabled}}" data-key-is-available="{{.IsAvailable}}">
                         {{.Alias}}
                       </a>
                       <button class="ghost copy-key-button" type="button" data-copy-secret-url="/api/keys/{{.ID}}/secret">复制</button>
@@ -320,7 +320,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
               {{if .SelectedKey}}
                 <div class="pane">
                   <div class="pane-title"><span>密钥详情</span></div>
-                  <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form>
+                  <form class="detail-form key-form" method="post" action="/admin/keys/update" data-dirty-form data-key-detail-form>
                     <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                     <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
                     <input type="hidden" name="sortOrder" value="{{.SelectedKey.SortOrder}}">
@@ -332,11 +332,11 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                     </span>
                     <span class="actions">
                       <button class="secondary" type="submit" data-save disabled>保存</button>
-                      <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
+                      <button class="danger" type="submit" form="delete-key-form">删除</button>
                     </span>
                   </form>
                 </div>
-                <form id="delete-key-{{.SelectedKey.ID}}" method="post" action="/admin/keys/delete">
+                <form id="delete-key-form" method="post" action="/admin/keys/delete">
                   <input type="hidden" name="providerId" value="{{.Selected.Provider.ID}}">
                   <input type="hidden" name="keyId" value="{{.SelectedKey.ID}}">
                 </form>
@@ -434,14 +434,46 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       }
     }
 
+    function rememberFormSnapshot(form) {
+      form.dataset.initialEntries = JSON.stringify(Array.from(new FormData(form).entries()));
+      const save = form.querySelector('[data-save]');
+      if (save) save.disabled = true;
+    }
+
+    function selectAdminKey(link, url) {
+      const detailForm = document.querySelector('[data-key-detail-form]');
+      const deleteForm = document.querySelector('#delete-key-form');
+      const reorderForm = document.querySelector('[data-sortable-keys]');
+      if (!detailForm || !deleteForm || !reorderForm) return false;
+
+      document.querySelectorAll('[data-key-link]').forEach((candidate) => {
+        candidate.classList.toggle('active', candidate === link);
+      });
+      detailForm.querySelector('input[name="keyId"]').value = link.dataset.keyId || '';
+      detailForm.querySelector('input[name="sortOrder"]').value = link.dataset.keySortOrder || '0';
+      detailForm.querySelector('input[name="alias"]').value = link.dataset.keyAlias || '';
+      detailForm.querySelector('input[name="secretValue"]').value = '';
+      detailForm.querySelector('input[name="secretValue"]').placeholder = (link.dataset.keyMasked || '') + '，留空不替换';
+      detailForm.querySelector('input[name="isEnabled"]').checked = link.dataset.keyIsEnabled === 'true';
+      detailForm.querySelector('input[name="isAvailable"]').checked = link.dataset.keyIsAvailable === 'true';
+      deleteForm.querySelector('input[name="keyId"]').value = link.dataset.keyId || '';
+      reorderForm.querySelector('input[name="keyId"]').value = link.dataset.keyId || '';
+      rememberFormSnapshot(detailForm);
+      if (url && url !== window.location.href) {
+        window.history.pushState({}, '', url);
+      }
+      return true;
+    }
+
     function initAdminPage() {
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
       if (!save) return;
-      const snapshot = new FormData(form);
-      const initial = JSON.stringify(Array.from(snapshot.entries()));
+      if (!form.dataset.initialEntries) {
+        rememberFormSnapshot(form);
+      }
       const sync = () => {
-        save.disabled = JSON.stringify(Array.from(new FormData(form).entries())) === initial;
+        save.disabled = JSON.stringify(Array.from(new FormData(form).entries())) === form.dataset.initialEntries;
       };
       form.addEventListener('input', sync);
       form.addEventListener('change', sync);
@@ -583,6 +615,10 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
         if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
         const url = new URL(link.href, window.location.href);
         if (url.origin !== window.location.origin || !url.pathname.startsWith('/admin')) return;
+        if (link.hasAttribute('data-key-link') && selectAdminKey(link, url.href)) {
+          event.preventDefault();
+          return;
+        }
         event.preventDefault();
         navigateAdmin(url.href);
       });
@@ -932,57 +968,69 @@ func loadAdminPageData(r *http.Request, store *admin.Store, data adminPageData) 
 	if err != nil {
 		return data, err
 	}
+	counts, err := store.ListProviderCounts(r.Context())
+	if err != nil {
+		return data, err
+	}
 	selectedID := r.URL.Query().Get("providerId")
 	if selectedID == "" && len(providers) > 0 {
 		selectedID = providers[0].ID
 	}
 
 	data.Providers = make([]providerNavItem, 0, len(providers))
+	var selectedProvider *admin.Provider
 	for _, provider := range providers {
-		models, err := store.ListModels(r.Context(), provider.ID, "")
-		if err != nil {
-			return data, err
-		}
-		keys, err := store.ListAPIKeys(r.Context(), provider.ID)
-		if err != nil {
-			return data, err
-		}
+		count := counts[provider.ID]
 		item := providerNavItem{
 			Provider:   provider,
 			IsActive:   provider.ID == selectedID,
-			ModelCount: len(models),
-			KeyCount:   len(keys),
+			ModelCount: count.ModelCount,
+			KeyCount:   count.KeyCount,
 		}
 		data.Providers = append(data.Providers, item)
 		if provider.ID == selectedID {
-			if data.SelectedKeyID == "" && len(keys) > 0 {
-				data.SelectedKeyID = keys[0].ID
-			}
-			if data.SelectedModelID == "" && len(models) > 0 {
-				data.SelectedModelID = models[0].ID
-			}
-			nextKeySortOrder := 1
-			for _, key := range keys {
-				if key.SortOrder >= nextKeySortOrder {
-					nextKeySortOrder = key.SortOrder + 1
-				}
-			}
-			selectedProvider := providerPanel{Provider: provider, Models: models, Keys: keys, NextKeySortOrder: nextKeySortOrder}
-			data.Selected = &selectedProvider
-			for _, key := range keys {
-				if key.ID == data.SelectedKeyID {
-					selectedKey := key
-					data.SelectedKey = &selectedKey
-					break
-				}
-			}
-			for _, model := range models {
-				if model.ID == data.SelectedModelID {
-					selectedModel := model
-					data.SelectedModel = &selectedModel
-					break
-				}
-			}
+			providerCopy := provider
+			selectedProvider = &providerCopy
+		}
+	}
+	if selectedProvider == nil {
+		return data, nil
+	}
+
+	models, err := store.ListModels(r.Context(), selectedProvider.ID, "")
+	if err != nil {
+		return data, err
+	}
+	keys, err := store.ListAPIKeys(r.Context(), selectedProvider.ID)
+	if err != nil {
+		return data, err
+	}
+	if data.SelectedKeyID == "" && len(keys) > 0 {
+		data.SelectedKeyID = keys[0].ID
+	}
+	if data.SelectedModelID == "" && len(models) > 0 {
+		data.SelectedModelID = models[0].ID
+	}
+	nextKeySortOrder := 1
+	for _, key := range keys {
+		if key.SortOrder >= nextKeySortOrder {
+			nextKeySortOrder = key.SortOrder + 1
+		}
+	}
+	selectedPanel := providerPanel{Provider: *selectedProvider, Models: models, Keys: keys, NextKeySortOrder: nextKeySortOrder}
+	data.Selected = &selectedPanel
+	for _, key := range keys {
+		if key.ID == data.SelectedKeyID {
+			selectedKey := key
+			data.SelectedKey = &selectedKey
+			break
+		}
+	}
+	for _, model := range models {
+		if model.ID == data.SelectedModelID {
+			selectedModel := model
+			data.SelectedModel = &selectedModel
+			break
 		}
 	}
 	return data, nil
