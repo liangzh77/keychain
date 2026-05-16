@@ -317,21 +317,35 @@ func TestAccessDataAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAPIKey() error = %v", err)
 	}
+	backupKey, err := store.CreateAPIKey(context.Background(), CreateAPIKeyInput{
+		ProviderID:  provider.ID,
+		Alias:       "backup-key",
+		SecretValue: "sk-backup",
+		IsEnabled:   true,
+		IsAvailable: true,
+		SortOrder:   2,
+	})
+	if err != nil {
+		t.Fatalf("CreateAPIKey(backup) error = %v", err)
+	}
 	keyRows, err := store.ListUserKeyPermissionRows(context.Background(), users[0].ID, provider.ID)
 	if err != nil {
 		t.Fatalf("ListUserKeyPermissionRows() error = %v", err)
 	}
-	if len(keyRows) != 1 || keyRows[0].KeyID != apiKey.ID || keyRows[0].Allowed || keyRows[0].HasExplicit {
+	if len(keyRows) != 2 || keyRows[0].KeyID != apiKey.ID || keyRows[0].Allowed || keyRows[0].HasExplicit {
 		t.Fatalf("default user key permission rows = %#v", keyRows)
 	}
 	if err := store.SetUserKeyPermission(context.Background(), users[0].ID, provider.ID, apiKey.ID, false); err != nil {
 		t.Fatalf("SetUserKeyPermission() error = %v", err)
 	}
+	if err := store.SetUserKeyPermission(context.Background(), users[0].ID, provider.ID, backupKey.ID, true); err != nil {
+		t.Fatalf("SetUserKeyPermission(backup) error = %v", err)
+	}
 	keyRows, err = store.ListUserKeyPermissionRows(context.Background(), users[0].ID, provider.ID)
 	if err != nil {
 		t.Fatalf("ListUserKeyPermissionRows() after set error = %v", err)
 	}
-	if len(keyRows) != 1 || keyRows[0].Allowed || !keyRows[0].HasExplicit {
+	if len(keyRows) != 2 || keyRows[0].KeyID != backupKey.ID || !keyRows[0].Allowed || !keyRows[0].HasExplicit || keyRows[1].KeyID != apiKey.ID || keyRows[1].Allowed || !keyRows[1].HasExplicit {
 		t.Fatalf("explicit user key permission rows = %#v", keyRows)
 	}
 }

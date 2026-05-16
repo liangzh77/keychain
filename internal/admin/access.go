@@ -393,7 +393,7 @@ FROM api_keys
 JOIN providers ON providers.id = api_keys.provider_id
 LEFT JOIN user_key_permissions ON user_key_permissions.user_id = ? AND user_key_permissions.provider_id = providers.id AND user_key_permissions.key_id = api_keys.id
 WHERE api_keys.provider_id = ?
-ORDER BY api_keys.sort_order ASC, api_keys.created_at DESC, api_keys.alias ASC;
+ORDER BY allowed DESC, api_keys.sort_order ASC, api_keys.created_at DESC, api_keys.alias ASC;
 `, userID, providerID)
 	if err != nil {
 		return nil, fmt.Errorf("list user key permission rows: %w", err)
