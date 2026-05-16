@@ -17,6 +17,7 @@ func registerAdminAPIRoutes(mux *http.ServeMux, authService *auth.Service, store
 	mux.HandleFunc("POST /api/models", requireAdmin(authService, createModelHandler(store)))
 	mux.HandleFunc("GET /api/keys", requireAdmin(authService, listKeysHandler(store)))
 	mux.HandleFunc("POST /api/keys", requireAdmin(authService, createKeyHandler(store)))
+	mux.HandleFunc("GET /api/keys/{id}/secret", requireAdmin(authService, getKeySecretHandler(store)))
 }
 
 func listProvidersHandler(store *admin.Store) http.HandlerFunc {
@@ -97,6 +98,18 @@ func createKeyHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		web.WriteJSON(w, http.StatusCreated, key)
+	}
+}
+
+func getKeySecretHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		secretValue, err := store.GetAPIKeySecret(r.Context(), r.PathValue("id"))
+		if err != nil {
+			web.WriteError(w, http.StatusNotFound, "KEY_NOT_FOUND", "Key not found", nil)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		web.WriteJSON(w, http.StatusOK, map[string]string{"secretValue": secretValue})
 	}
 }
 

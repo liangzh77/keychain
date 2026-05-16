@@ -125,6 +125,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     .sortable-item { display: flex; align-items: center; cursor: grab; }
     .sortable-item.dragging { opacity: .55; }
     .sortable-item .mini-link { flex: 1; min-width: 0; }
+    .sortable-item .copy-key-button { flex: 0 0 auto; margin-left: 6px; }
     .mini-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
     .pane { display: grid; gap: 8px; min-width: 0; }
     .pane-title { display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 0 2px; color: #5f6259; font-size: 12px; font-weight: 800; letter-spacing: 0; }
@@ -310,6 +311,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                       <a class="mini-link {{if eq $.SelectedKeyID .ID}}active{{end}}" draggable="false" href="/admin?providerId={{$.Selected.Provider.ID}}&keyId={{.ID}}&modelId={{$.SelectedModelID}}">
                         {{.Alias}}
                       </a>
+                      <button class="ghost copy-key-button" type="button" data-copy-secret-url="/api/keys/{{.ID}}/secret">复制</button>
                       <input type="hidden" name="keyIds" value="{{.ID}}">
                     </div>
                   {{end}}
@@ -329,6 +331,7 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                       <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
                     </span>
                     <span class="actions">
+                      <button class="ghost" type="button" data-copy-secret-url="/api/keys/{{.SelectedKey.ID}}/secret">复制</button>
                       <button class="secondary" type="submit" data-save disabled>保存</button>
                       <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
                     </span>
@@ -417,6 +420,21 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
       }
     }
 
+    async function copyToClipboard(value) {
+      try {
+        await navigator.clipboard.writeText(value || '');
+      } catch (error) {
+        const fallback = document.createElement('textarea');
+        fallback.value = value || '';
+        fallback.style.position = 'fixed';
+        fallback.style.left = '-9999px';
+        document.body.appendChild(fallback);
+        fallback.select();
+        document.execCommand('copy');
+        fallback.remove();
+      }
+    }
+
     function initAdminPage() {
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
@@ -441,19 +459,30 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
     });
     document.querySelectorAll('[data-copy-text]').forEach((button) => {
       button.addEventListener('click', async () => {
+        await copyToClipboard(button.dataset.copyText || '');
+        button.setAttribute('aria-label', '已复制');
+        window.setTimeout(() => button.setAttribute('aria-label', '复制失败信息'), 1200);
+      });
+    });
+    document.querySelectorAll('[data-copy-secret-url]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const originalText = button.textContent;
+        button.disabled = true;
         try {
-          await navigator.clipboard.writeText(button.dataset.copyText || '');
-          button.setAttribute('aria-label', '已复制');
-          window.setTimeout(() => button.setAttribute('aria-label', '复制失败信息'), 1200);
+          const response = await fetch(button.dataset.copySecretUrl, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
+          });
+          if (!response.ok) throw new Error('Copy failed');
+          const payload = await response.json();
+          await copyToClipboard(payload.secretValue || '');
+          button.textContent = '已复制';
         } catch (error) {
-          const fallback = document.createElement('textarea');
-          fallback.value = button.dataset.copyText || '';
-          fallback.style.position = 'fixed';
-          fallback.style.left = '-9999px';
-          document.body.appendChild(fallback);
-          fallback.select();
-          document.execCommand('copy');
-          fallback.remove();
+          button.textContent = '复制失败';
+        } finally {
+          window.setTimeout(() => {
+            button.textContent = originalText;
+            button.disabled = false;
+          }, 1200);
         }
       });
     });

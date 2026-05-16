@@ -73,6 +73,14 @@ func TestProviderModelKeyFlow(t *testing.T) {
 	if strings.Contains(keys[0].MaskedValue, "secret") {
 		t.Fatalf("listed masked value leaks secret: %s", keys[0].MaskedValue)
 	}
+
+	secretValue, err := store.GetAPIKeySecret(context.Background(), key.ID)
+	if err != nil {
+		t.Fatalf("GetAPIKeySecret() error = %v", err)
+	}
+	if secretValue != "sk-test-secret-1234" {
+		t.Fatalf("GetAPIKeySecret() = %q, want created secret", secretValue)
+	}
 }
 
 func TestListModelsRequiresProviderFilter(t *testing.T) {

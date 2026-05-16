@@ -364,6 +364,26 @@ FROM api_keys
 	return keys, nil
 }
 
+func (store *Store) GetAPIKeySecret(ctx context.Context, id string) (string, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return "", fmt.Errorf("key id is required")
+	}
+
+	var secretValue string
+	if err := store.db.QueryRowContext(ctx, `
+SELECT secret_value
+FROM api_keys
+WHERE id = ?;
+`, id).Scan(&secretValue); err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("key not found")
+		}
+		return "", fmt.Errorf("get api key secret: %w", err)
+	}
+	return secretValue, nil
+}
+
 func (store *Store) CreateAPIKey(ctx context.Context, input CreateAPIKeyInput) (APIKey, error) {
 	input.ProviderID = strings.TrimSpace(input.ProviderID)
 	input.Alias = strings.TrimSpace(input.Alias)
