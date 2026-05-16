@@ -331,7 +331,6 @@ var adminPageTemplate = template.Must(template.New("admin").Parse(`<!doctype htm
                       <label class="check"><input type="checkbox" name="isAvailable" value="1" {{if .SelectedKey.IsAvailable}}checked{{end}}> 可用</label>
                     </span>
                     <span class="actions">
-                      <button class="ghost" type="button" data-copy-secret-url="/api/keys/{{.SelectedKey.ID}}/secret">复制</button>
                       <button class="secondary" type="submit" data-save disabled>保存</button>
                       <button class="danger" type="submit" form="delete-key-{{.SelectedKey.ID}}">删除</button>
                     </span>
