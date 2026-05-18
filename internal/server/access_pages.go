@@ -275,6 +275,9 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
                     <span class="user-actions">
                       <label class="check"><input type="checkbox" name="isEnabled" value="1" {{if .SelectedUser.IsEnabled}}checked{{end}}> 启用</label>
                       <button class="secondary" type="submit" data-save disabled>保存用户</button>
+                      {{if eq .Selected.Channel.UserManagementMode "KEYCHAIN_HOSTED"}}
+                        <button class="ghost" type="button" data-reset-password-user data-user-id="{{.SelectedUser.ID}}" data-channel-id="{{.Selected.Channel.ID}}" data-channel-name="{{.Selected.Channel.Name}}" data-user-name="{{.SelectedUser.DisplayName}}">重置密码</button>
+                      {{end}}
                       <button class="danger" type="button" data-delete-user form="delete-user-{{.SelectedUser.ID}}" data-user-name="{{.SelectedUser.DisplayName}}">删除</button>
                     </span>
                   </form>
@@ -366,6 +369,20 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
       </div>
     </div>
   </div>
+  <div class="modal-backdrop" data-reset-password-modal hidden>
+    <form class="modal" method="post" action="/admin/users/reset-password" data-reset-password-form role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
+      <h3 id="reset-password-title">重置托管用户密码</h3>
+      <p>为用户 <strong data-reset-password-user-name></strong> 设置新密码。密码将以哈希形式保存在 Keychain 中。</p>
+      <input type="hidden" name="channelId" data-reset-channel-id>
+      <input type="hidden" name="channelName" data-reset-channel-name>
+      <input type="hidden" name="userId" data-reset-user-id>
+      <label style="margin-top:14px">新密码<input type="password" name="password" autocomplete="new-password" minlength="6" required data-reset-password-input></label>
+      <div class="modal-actions">
+        <button class="ghost" type="button" data-cancel-reset-password>取消</button>
+        <button class="secondary" type="submit">保存新密码</button>
+      </div>
+    </form>
+  </div>
   <script>
     function replaceAdminApp(html, url) {
       const parsed = new DOMParser().parseFromString(html, 'text/html');
@@ -436,10 +453,17 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
 
     function initAdminPage() {
     const deleteModal = document.querySelector('[data-delete-user-modal]');
+    const resetPasswordModal = document.querySelector('[data-reset-password-modal]');
     const closeDeleteModal = () => {
       if (!deleteModal) return;
       deleteModal.hidden = true;
       deleteModal.dataset.formId = '';
+    };
+    const closeResetPasswordModal = () => {
+      if (!resetPasswordModal) return;
+      resetPasswordModal.hidden = true;
+      const form = resetPasswordModal.querySelector('[data-reset-password-form]');
+      if (form) form.reset();
     };
     document.querySelectorAll('[data-delete-user]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -465,9 +489,33 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
           const formID = deleteModal.dataset.formId || '';
           const form = formID ? document.getElementById(formID) : null;
           closeDeleteModal();
-          if (form) form.requestSubmit();
+        if (form) form.requestSubmit();
         });
       }
+    }
+    document.querySelectorAll('[data-reset-password-user]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (!resetPasswordModal) return;
+        const name = resetPasswordModal.querySelector('[data-reset-password-user-name]');
+        const userID = resetPasswordModal.querySelector('[data-reset-user-id]');
+        const channelID = resetPasswordModal.querySelector('[data-reset-channel-id]');
+        const channelName = resetPasswordModal.querySelector('[data-reset-channel-name]');
+        if (name) name.textContent = button.dataset.userName || '这个用户';
+        if (userID) userID.value = button.dataset.userId || '';
+        if (channelID) channelID.value = button.dataset.channelId || '';
+        if (channelName) channelName.value = button.dataset.channelName || '';
+        resetPasswordModal.hidden = false;
+        const password = resetPasswordModal.querySelector('[data-reset-password-input]');
+        if (password) password.focus();
+      });
+    });
+    if (resetPasswordModal && !resetPasswordModal.dataset.ready) {
+      resetPasswordModal.dataset.ready = '1';
+      resetPasswordModal.addEventListener('click', (event) => {
+        if (event.target === resetPasswordModal) closeResetPasswordModal();
+      });
+      const cancel = resetPasswordModal.querySelector('[data-cancel-reset-password]');
+      if (cancel) cancel.addEventListener('click', closeResetPasswordModal);
     }
     document.querySelectorAll('[data-dirty-form]').forEach((form) => {
       const save = form.querySelector('[data-save]');
@@ -609,19 +657,25 @@ var accessPageTemplate = template.Must(template.New("access").Parse(`<!doctype h
         event.preventDefault();
         navigateAdmin(url.href);
       });
-      document.addEventListener('submit', (event) => {
+      document.addEventListener('submit', async (event) => {
         const form = event.target;
-        if (!form.matches('.app form[method="post"]')) return;
+        if (!form.matches('.app form[method="post"], [data-reset-password-form]')) return;
         event.preventDefault();
-        submitAdminForm(form, event.submitter);
+        const isResetPasswordForm = form.matches('[data-reset-password-form]');
+        const resetModal = document.querySelector('[data-reset-password-modal]');
+        if (isResetPasswordForm && resetModal) resetModal.hidden = true;
+        await submitAdminForm(form, event.submitter);
+        if (isResetPasswordForm) form.reset();
       });
       window.addEventListener('popstate', () => {
         navigateAdmin(window.location.href);
       });
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
-          const modal = document.querySelector('[data-delete-user-modal]');
-          if (modal && !modal.hidden) modal.hidden = true;
+          const deleteModal = document.querySelector('[data-delete-user-modal]');
+          const resetModal = document.querySelector('[data-reset-password-modal]');
+          if (deleteModal && !deleteModal.hidden) deleteModal.hidden = true;
+          if (resetModal && !resetModal.hidden) resetModal.hidden = true;
         }
       });
     }
@@ -688,6 +742,7 @@ func registerAccessRoutes(mux *http.ServeMux, authService *auth.Service, store *
 	mux.HandleFunc("POST /admin/channels/delete", formDeleteChannelHandler(store))
 	mux.HandleFunc("POST /admin/users/update", formUpdateUserHandler(store))
 	mux.HandleFunc("POST /admin/users/delete", formDeleteUserHandler(store))
+	mux.HandleFunc("POST /admin/users/reset-password", formResetUserPasswordHandler(store))
 	mux.HandleFunc("POST /admin/channel-permissions", formSetChannelPermissionHandler(store))
 	mux.HandleFunc("POST /admin/user-permissions", formSetUserPermissionHandler(store))
 	mux.HandleFunc("POST /admin/user-key-permissions", formSetUserKeyPermissionHandler(store))
@@ -933,6 +988,26 @@ func formDeleteUserHandler(store *admin.Store) http.HandlerFunc {
 			return
 		}
 		redirectAccessChannel(w, r, channelID, "")
+	}
+}
+
+func formResetUserPasswordHandler(store *admin.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			redirectAccessError(w, r, "重置密码表单格式不正确")
+			return
+		}
+		channelID := r.FormValue("channelId")
+		userID := r.FormValue("userId")
+		if _, err := store.ResetRuntimeHostedUserPassword(r.Context(), admin.ResetRuntimeHostedUserPasswordInput{
+			ChannelName: r.FormValue("channelName"),
+			UserID:      userID,
+			Password:    r.FormValue("password"),
+		}); err != nil {
+			redirectAccessError(w, r, "重置密码失败："+err.Error())
+			return
+		}
+		redirectAccessChannel(w, r, channelID, userID)
 	}
 }
 
